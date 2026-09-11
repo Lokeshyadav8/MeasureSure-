@@ -1,0 +1,6 @@
+{
+  "name": "Legal Metrology Verification",
+  "description": "Online Verification System for Weighing and Measuring Instruments with digital certificates, QR validation, role-based workflows, and AI diagnostics.",
+  "requestFramePermissions": ["camera"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
