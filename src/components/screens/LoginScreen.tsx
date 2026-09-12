@@ -27,8 +27,6 @@ import {
 } from 'lucide-react';
 import { useMetrology } from '../../context/MetrologyContext';
 import { UserRole } from '../../types';
-import { DatabaseSecurityModal } from '../modals/DatabaseSecurityModal';
-import { fetchRememberedUser } from '../../services/authService';
 
 // Helper to generate realistic 6-character captcha
 const generateCaptcha = () => {
@@ -66,13 +64,10 @@ export const LoginScreen: React.FC = () => {
   // Register Form States
   const [regName, setRegName] = useState('');
   const [regEmail, setRegEmail] = useState('');
-  const [regPassword, setRegPassword] = useState('');
-  const [showRegPassword, setShowRegPassword] = useState(false);
   const [regRole, setRegRole] = useState<UserRole>('BUSINESS_OWNER');
   const [regBusiness, setRegBusiness] = useState('');
   const [regPhone, setRegPhone] = useState('');
   const [regLicense, setRegLicense] = useState('');
-  const [showSecurityModal, setShowSecurityModal] = useState(false);
 
   // Preset accounts for Official Statutory Portals
   const statutoryAccounts: {
@@ -178,16 +173,6 @@ export const LoginScreen: React.FC = () => {
     if (userRole) {
       setActiveRoleTab(userRole);
     }
-    // Auto-restore remembered email, contact, and role if previously saved
-    fetchRememberedUser().then(rem => {
-      if (rem && rem.email) {
-        setEmailOrId(rem.email);
-        setRememberMe(true);
-        if (rem.role) {
-          setActiveRoleTab(rem.role as UserRole);
-        }
-      }
-    }).catch(() => {});
   }, [userRole]);
 
   // Submit standard login form
@@ -218,52 +203,41 @@ export const LoginScreen: React.FC = () => {
     setErrorMessage('');
     try {
       const match = statutoryAccounts.find(d => d.role === activeRoleTab);
-      const res = await login(
+      await login(
         activeRoleTab,
         emailOrId,
         password || 'CITIZEN_PUBLIC_ACCESS',
         match?.name || emailOrId.split('@')[0] || 'Authorized User',
-        match?.dept || (activeRoleTab === 'BUSINESS_OWNER' ? 'Registered Commercial Establishment' : 'Legal Metrology Department'),
-        rememberMe
+        match?.dept || (activeRoleTab === 'BUSINESS_OWNER' ? 'Registered Commercial Establishment' : 'Legal Metrology Department')
       );
-
-      if (!res.success) {
-        setErrorMessage(res.message || 'Invalid authentication credentials or inactive license. Please verify your details.');
-      }
-    } catch (err: any) {
-      setErrorMessage(err?.message || 'Invalid authentication credentials. Please check your details.');
+    } catch (err) {
+      setErrorMessage('Invalid authentication credentials or inactive license. Please verify your details.');
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Submit registration form with secure cryptographic salted hash
+  // Submit registration form
   const handleRegisterSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!regName.trim() || !regEmail.trim() || !regPassword.trim() || !regPhone.trim()) {
-      setErrorMessage('Please fill in your full name, official email address, mobile number, and statutory password.');
+    if (!regName.trim() || !regEmail.trim()) {
+      setErrorMessage('Please fill in your full name and official email address.');
       return;
     }
     setIsLoading(true);
     setErrorMessage('');
     try {
-      const res = await registerUser({
+      await registerUser({
         name: regName,
         email: regEmail,
-        password: regPassword,
         role: regRole,
         businessOrDepartment: regBusiness || (regRole === 'BUSINESS_OWNER' ? 'Apex Logistics & Freight Hub' : 'Legal Metrology Directorate'),
-        phone: regPhone,
+        phone: regPhone || '+91 98450 12345',
         licenseNumber: regLicense || `LM-${regRole.substring(0, 3)}-${Math.floor(1000 + Math.random() * 9000)}`
       });
-
-      if (res.success) {
-        setSuccessMessage(`Account registered for ${regName}. Password securely encrypted via salted PBKDF2 cryptographic hash in database. Launching designated statutory workspace...`);
-      } else {
-        setErrorMessage(res.message || 'Failed to complete statutory registration. Please try again.');
-      }
-    } catch (err: any) {
-      setErrorMessage(err?.message || 'Failed to complete statutory registration. Please try again.');
+      setSuccessMessage(`Account registered for ${regName}. Launching designated statutory workspace...`);
+    } catch (err) {
+      setErrorMessage('Failed to complete statutory registration. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -544,9 +518,9 @@ export const LoginScreen: React.FC = () => {
                       type="checkbox"
                       checked={rememberMe}
                       onChange={(e) => setRememberMe(e.target.checked)}
-                      className="w-4 h-4 rounded-md text-cyan-600 focus:ring-cyan-500 border-slate-300 cursor-pointer"
+                      className="w-4 h-4 rounded-md text-cyan-600 focus:ring-cyan-500 border-slate-300"
                     />
-                    <span className="text-xs font-bold text-slate-700">Remember credentials on this device</span>
+                    <span className="text-xs font-bold text-slate-700">Stay logged in on this terminal</span>
                   </label>
                   <button
                     type="button"
@@ -554,21 +528,6 @@ export const LoginScreen: React.FC = () => {
                     className="text-[11px] font-bold text-cyan-700 hover:text-cyan-900 hover:underline"
                   >
                     Forgot Password / PIN?
-                  </button>
-                </div>
-
-                {/* Database Breach Protection Indicator & Audit Trigger */}
-                <div className="p-2.5 bg-slate-100/90 border border-slate-200/90 rounded-xl flex items-center justify-between text-[11px]">
-                  <div className="flex items-center gap-2 text-slate-800 font-bold">
-                    <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
-                    <span>Database Protection: Salted PBKDF2-SHA512 Hash</span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setShowSecurityModal(true)}
-                    className="text-cyan-700 hover:text-cyan-900 font-black underline cursor-pointer"
-                  >
-                    Verify Security Audit
                   </button>
                 </div>
 
@@ -658,10 +617,9 @@ export const LoginScreen: React.FC = () => {
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="space-y-1">
-                    <label className="text-xs font-black text-slate-800">Mobile Number (WhatsApp/SMS Alerts) *</label>
+                    <label className="text-xs font-black text-slate-800">Mobile Number (WhatsApp/SMS Alerts)</label>
                     <input
                       type="tel"
-                      required
                       value={regPhone}
                       onChange={(e) => setRegPhone(e.target.value)}
                       placeholder="Enter 10-digit mobile number"
@@ -678,52 +636,6 @@ export const LoginScreen: React.FC = () => {
                       className="w-full px-3.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:bg-white focus:border-cyan-600 outline-hidden font-mono"
                     />
                   </div>
-                </div>
-
-                {/* Account Password Field with Salted Hash Protection */}
-                <div className="space-y-1">
-                  <div className="flex items-center justify-between">
-                    <label className="text-xs font-black text-slate-800">Account Password *</label>
-                    <span className="text-[10px] text-emerald-700 font-bold flex items-center gap-1">
-                      <Lock className="w-3 h-3 text-emerald-600" />
-                      <span>Encrypted Salted Hash Storage</span>
-                    </span>
-                  </div>
-                  <div className="relative">
-                    <input
-                      type={showRegPassword ? 'text' : 'password'}
-                      required
-                      value={regPassword}
-                      onChange={(e) => setRegPassword(e.target.value)}
-                      placeholder="Create secure statutory password (min 6 characters)"
-                      className="w-full pl-3.5 pr-10 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:bg-white focus:border-cyan-600 outline-hidden"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowRegPassword(!showRegPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
-                    >
-                      {showRegPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                    </button>
-                  </div>
-                  <p className="text-[10px] text-slate-500 font-medium">
-                    Protected against data breaches: Passwords are automatically converted to irreversible 128-hex PBKDF2 hashcodes with unique 16-byte cryptographic salts.
-                  </p>
-                </div>
-
-                {/* Database Breach Protection Indicator & Audit trigger */}
-                <div className="p-2.5 bg-emerald-50/80 border border-emerald-200/90 rounded-xl flex items-center justify-between text-[11px]">
-                  <div className="flex items-center gap-2 text-emerald-900 font-bold">
-                    <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
-                    <span>Database Protection: Zero Plaintext Passwords</span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setShowSecurityModal(true)}
-                    className="text-emerald-700 hover:text-emerald-950 font-black underline cursor-pointer"
-                  >
-                    Verify Security Audit
-                  </button>
                 </div>
 
                 <button
@@ -906,12 +818,6 @@ export const LoginScreen: React.FC = () => {
           </div>
         </div>
       )}
-
-      {/* Database Security & Breach Protection Audit Modal */}
-      <DatabaseSecurityModal
-        isOpen={showSecurityModal}
-        onClose={() => setShowSecurityModal(false)}
-      />
 
     </div>
   );

@@ -22,30 +22,6 @@ export interface UserEntity {
   businessOrDepartment: string;
   phone: string;
   licenseNumber: string;
-  passwordHash?: string;
-  salt?: string;
-  hashAlgorithm?: string;
-  createdAt?: number;
-  lastLogin?: number;
-}
-
-export interface SecurityAuditReport {
-  totalUsers: number;
-  encryptionAlgorithm: string;
-  iterations: number;
-  saltLengthBits: number;
-  plaintextExposed: number;
-  breachProtectionStatus: 'OPTIMAL_PBKDF2_SECURED' | 'PROTECTED';
-  records: Array<{
-    userId: string;
-    email: string;
-    phone: string;
-    role: string;
-    saltSnippet: string;
-    hashSnippet: string;
-    hashAlgorithm: string;
-    createdAt: number;
-  }>;
 }
 
 export type PaymentMode =
