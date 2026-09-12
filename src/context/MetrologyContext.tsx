@@ -26,6 +26,7 @@ import {
 import { GeminiMetrologyService } from '../services/geminiService';
 import confetti from 'canvas-confetti';
 import { getPublicVerificationUrl, extractVerificationCode } from '../utils/verification';
+import { loginWithDatabase, registerWithDatabase } from '../services/authService';
 
 interface MetrologyContextType {
   userRole: UserRole;
@@ -101,9 +102,9 @@ interface MetrologyContextType {
   publicHasSearched: boolean;
 
   // Actions
-  login: (role: UserRole, emailOrId?: string, passwordOrPin?: string, customName?: string, customDept?: string) => Promise<{ success: boolean; message?: string }>;
+  login: (role: UserRole, emailOrId?: string, passwordOrPin?: string, customName?: string, customDept?: string, rememberMe?: boolean, phone?: string) => Promise<{ success: boolean; message?: string }>;
   logout: () => void;
-  registerUser: (userData: Omit<UserEntity, 'userId'>) => Promise<{ success: boolean; message?: string }>;
+  registerUser: (userData: Omit<UserEntity, 'userId'> & { password?: string }) => Promise<{ success: boolean; message?: string }>;
   switchUserAccount: (userId: string) => void;
   setUserRole: (role: UserRole) => void;
   setActiveScreen: (screen: ScreenType) => void;
@@ -188,10 +189,19 @@ export const MetrologyProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     initialData?.isAuthenticated !== undefined ? initialData.isAuthenticated : false
   );
 
+  const getInitialTab = (role: UserRole): 'INSTRUMENTS' | 'REQUESTS' | 'ADMIN' | 'PUBLIC_VERIFY' | 'GRIEVANCES' => {
+    if (role === 'PUBLIC') return 'PUBLIC_VERIFY';
+    if (role === 'ADMIN') return 'ADMIN';
+    if (role === 'INSPECTOR') return 'REQUESTS';
+    return 'INSTRUMENTS';
+  };
+
   const [activeScreen, setActiveScreen] = useState<ScreenType>(
     initialData?.isAuthenticated ? (initialData.activeScreen || 'DASHBOARD') : 'LOGIN'
   );
-  const [selectedTab, setSelectedTab] = useState<'INSTRUMENTS' | 'REQUESTS' | 'ADMIN' | 'PUBLIC_VERIFY' | 'GRIEVANCES'>('INSTRUMENTS');
+  const [selectedTab, setSelectedTab] = useState<'INSTRUMENTS' | 'REQUESTS' | 'ADMIN' | 'PUBLIC_VERIFY' | 'GRIEVANCES'>(
+    initialData?.selectedTab || getInitialTab(initialData?.userRole || 'BUSINESS_OWNER')
+  );
 
   const [instruments, setInstruments] = useState<InstrumentEntity[]>(initialData?.instruments || INITIAL_INSTRUMENTS);
   const [requests, setRequests] = useState<VerificationRequestEntity[]>(initialData?.requests || INITIAL_REQUESTS);
@@ -288,6 +298,23 @@ export const MetrologyProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [publicSearchResult, setPublicSearchResult] = useState<CertificateEntity | null>(null);
   const [publicHasSearched, setPublicHasSearched] = useState<boolean>(false);
 
+  // Sync users with persistent database on startup
+  useEffect(() => {
+    fetch('/api/auth/users')
+      .then(res => res.json())
+      .then(data => {
+        if (data.users && Array.isArray(data.users) && data.users.length > 0) {
+          setUsersList(prev => {
+            const map = new Map<string, UserEntity>();
+            prev.forEach(u => map.set(u.email.toLowerCase(), u));
+            data.users.forEach((u: UserEntity) => map.set(u.email.toLowerCase(), u));
+            return Array.from(map.values());
+          });
+        }
+      })
+      .catch(e => console.warn('[Database Sync] Initial user sync deferred:', e));
+  }, []);
+
   // Save to localStorage on state changes
   useEffect(() => {
     try {
@@ -296,6 +323,8 @@ export const MetrologyProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         userRole,
         currentUser,
         isAuthenticated,
+        activeScreen,
+        selectedTab,
         instruments,
         requests,
         inspections,
@@ -306,7 +335,7 @@ export const MetrologyProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     } catch (e) {
       console.warn('Failed to save to localStorage:', e);
     }
-  }, [usersList, userRole, currentUser, isAuthenticated, instruments, requests, inspections, certificates, auditLogs, grievances]);
+  }, [usersList, userRole, currentUser, isAuthenticated, activeScreen, selectedTab, instruments, requests, inspections, certificates, auditLogs, grievances]);
 
   const setUserRole = (role: UserRole) => {
     setUserRoleState(role);
@@ -342,10 +371,53 @@ export const MetrologyProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const login = useCallback(async (
     role: UserRole,
     emailOrId?: string,
-    _passwordOrPin?: string,
+    passwordOrPin?: string,
     customName?: string,
-    customDept?: string
+    customDept?: string,
+    rememberMe?: boolean,
+    phone?: string
   ): Promise<{ success: boolean; message?: string }> => {
+    // 1. Try server-side statutory database authentication
+    if (emailOrId && (role !== 'PUBLIC' || passwordOrPin)) {
+      try {
+        const dbResult = await loginWithDatabase(emailOrId, passwordOrPin, role, !!rememberMe, phone);
+        if (dbResult.success && dbResult.user) {
+          const user = dbResult.user;
+          setCurrentUser(user);
+          setUserRoleState(role);
+          setIsAuthenticated(true);
+          setActiveScreen('DASHBOARD');
+
+          if (role === 'PUBLIC') {
+            setSelectedTab('PUBLIC_VERIFY');
+          } else if (role === 'ADMIN') {
+            setSelectedTab('ADMIN');
+          } else if (role === 'INSPECTOR') {
+            setSelectedTab('REQUESTS');
+          } else {
+            setSelectedTab('INSTRUMENTS');
+          }
+
+          const newLog: AuditLogEntity = {
+            id: 'log-' + Date.now() + '-' + Math.random().toString(36).substring(2, 5),
+            timestamp: Date.now(),
+            action: 'USER_LOGIN',
+            performedBy: user.name,
+            role: role,
+            instrumentId: 'DATABASE-AUTH',
+            details: `${user.name} authenticated via cryptographic hash verification against statutory database.`
+          };
+          setAuditLogs(prev => [newLog, ...prev]);
+          return { success: true };
+        } else if (!dbResult.success && passwordOrPin) {
+          return { success: false, message: dbResult.message || 'Invalid credentials. Password verification failed.' };
+        }
+      } catch (err) {
+        console.warn('Database login failed, attempting local fallback:', err);
+      }
+    }
+
+    // 2. Fallback local matching
     let matchedUser = usersList.find(u =>
       u.role === role && (
         !emailOrId ||
@@ -367,7 +439,7 @@ export const MetrologyProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         email: emailOrId || `${role.toLowerCase()}@metrology.gov.in`,
         role: role,
         businessOrDepartment: customDept || (role === 'BUSINESS_OWNER' ? 'Apex Logistics & Freight Hub' : role === 'INSPECTOR' ? 'Legal Metrology Directorate - Zone 1' : role === 'ADMIN' ? 'National Metrological Regulatory Board' : 'Public Verification Portal'),
-        phone: '+91 98450 12345',
+        phone: phone || '+91 98450 12345',
         licenseNumber: `LM-${role.substring(0, 3)}-${Math.floor(1000 + Math.random() * 9000)}`
       };
       setUsersList(prev => [...prev, matchedUser!]);
@@ -419,7 +491,64 @@ export const MetrologyProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   }, [currentUser.name, userRole]);
 
   // Register User
-  const registerUser = useCallback(async (userData: Omit<UserEntity, 'userId'>): Promise<{ success: boolean; message?: string }> => {
+  const registerUser = useCallback(async (userData: Omit<UserEntity, 'userId'> & { password?: string }): Promise<{ success: boolean; message?: string }> => {
+    // 1. Try server database registration with cryptographic hash
+    if (userData.password) {
+      try {
+        const dbResult = await registerWithDatabase({
+          name: userData.name,
+          email: userData.email,
+          password: userData.password,
+          phone: userData.phone,
+          role: userData.role,
+          businessOrDepartment: userData.businessOrDepartment,
+          licenseNumber: userData.licenseNumber
+        });
+
+        if (!dbResult.success) {
+          return { success: false, message: dbResult.message || 'Failed to register account in statutory database.' };
+        }
+
+        if (dbResult.user) {
+          const registered = dbResult.user;
+          setUsersList(prev => [
+            ...prev.filter(u => u.email.toLowerCase() !== registered.email.toLowerCase()),
+            registered
+          ]);
+          setCurrentUser(registered);
+          setUserRoleState(registered.role);
+          setIsAuthenticated(true);
+          setActiveScreen('DASHBOARD');
+
+          if (registered.role === 'PUBLIC') {
+            setSelectedTab('PUBLIC_VERIFY');
+          } else if (registered.role === 'ADMIN') {
+            setSelectedTab('ADMIN');
+          } else if (registered.role === 'INSPECTOR') {
+            setSelectedTab('REQUESTS');
+          } else {
+            setSelectedTab('INSTRUMENTS');
+          }
+
+          const newLog: AuditLogEntity = {
+            id: 'log-' + Date.now() + '-' + Math.random().toString(36).substring(2, 5),
+            timestamp: Date.now(),
+            action: 'USER_REGISTERED_HASHED',
+            performedBy: registered.name,
+            role: registered.role,
+            instrumentId: 'DATABASE-ENCRYPTION',
+            details: `Account created for ${registered.name}. Password stored as irreversible 128-hex PBKDF2 hashcode with 16-byte cryptographic salt. Zero plaintext stored.`
+          };
+          setAuditLogs(prev => [newLog, ...prev]);
+
+          return { success: true, message: dbResult.message };
+        }
+      } catch (err) {
+        console.warn('Database register failed, continuing with fallback:', err);
+      }
+    }
+
+    // Fallback local registration
     const prefix = userData.role === 'BUSINESS_OWNER' ? 'BIZ' : userData.role === 'INSPECTOR' ? 'INS' : userData.role === 'ADMIN' ? 'ADM' : 'PUB';
     const newUserId = `USR-${prefix}-${Math.floor(100 + Math.random() * 900)}`;
     const newUser: UserEntity = {

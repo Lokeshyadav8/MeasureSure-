@@ -35,7 +35,7 @@ export const RegisterInstrumentModal: React.FC<RegisterInstrumentModalProps> = (
   const [serialNumber, setSerialNumber] = useState('');
   const [capacity, setCapacity] = useState('50');
   const [unitOfMeasurement, setUnitOfMeasurement] = useState('kg');
-  const [location, setLocation] = useState('Apex Central Hub, Station 1');
+  const [location, setLocation] = useState('Apex Central Freight Hub, Hyderabad');
   const [tolerance, setTolerance] = useState('0.05');
 
   // Auto-fill from AI OCR Scan
@@ -69,7 +69,7 @@ export const RegisterInstrumentModal: React.FC<RegisterInstrumentModalProps> = (
       serialNumber: serialNumber.trim() || 'SN-' + Math.floor(10000 + Math.random() * 90000),
       capacity: capacity.trim() || '50',
       unitOfMeasurement: unitOfMeasurement.trim() || 'kg',
-      location: location.trim() || 'Apex Station 1',
+      location: location.trim() || 'Apex Freight Terminal, Hyderabad',
       permissibleTolerance: tolDouble
     });
 

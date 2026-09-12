@@ -413,7 +413,7 @@ export const StatutoryGrievanceModal: React.FC<StatutoryGrievanceModalProps> = (
                     <input
                       type="text"
                       required
-                      placeholder="e.g. Lokesh Yadav"
+                      placeholder="Enter your full name"
                       value={reporterName}
                       onChange={e => setReporterName(e.target.value)}
                       className="w-full px-3 py-2 bg-white rounded-xl border border-slate-300 text-xs font-medium focus:ring-2 focus:ring-cyan-500 focus:outline-hidden"
@@ -426,7 +426,7 @@ export const StatutoryGrievanceModal: React.FC<StatutoryGrievanceModalProps> = (
                     <input
                       type="tel"
                       required
-                      placeholder="+91 98450 12345"
+                      placeholder="Enter 10-digit mobile number"
                       value={reporterContact}
                       onChange={e => setReporterContact(e.target.value)}
                       className="w-full px-3 py-2 bg-white rounded-xl border border-slate-300 text-xs font-medium focus:ring-2 focus:ring-cyan-500 focus:outline-hidden"
@@ -438,7 +438,7 @@ export const StatutoryGrievanceModal: React.FC<StatutoryGrievanceModalProps> = (
                     </label>
                     <input
                       type="email"
-                      placeholder="user@example.com"
+                      placeholder="Enter your email"
                       value={reporterEmail}
                       onChange={e => setReporterEmail(e.target.value)}
                       className="w-full px-3 py-2 bg-white rounded-xl border border-slate-300 text-xs font-medium focus:ring-2 focus:ring-cyan-500 focus:outline-hidden"
@@ -453,7 +453,7 @@ export const StatutoryGrievanceModal: React.FC<StatutoryGrievanceModalProps> = (
                     </label>
                     <input
                       type="text"
-                      placeholder="e.g. Apex Logistics & Freight Hub"
+                      placeholder="Enter establishment or shop name"
                       value={establishmentName}
                       onChange={e => setEstablishmentName(e.target.value)}
                       className="w-full px-3 py-2 bg-white rounded-xl border border-slate-300 text-xs font-medium focus:ring-2 focus:ring-cyan-500 focus:outline-hidden"
@@ -465,7 +465,7 @@ export const StatutoryGrievanceModal: React.FC<StatutoryGrievanceModalProps> = (
                     </label>
                     <input
                       type="text"
-                      placeholder="e.g. Inland Port Terminal, Zone 1, Hyderabad"
+                      placeholder="Enter premises address or landmark"
                       value={location}
                       onChange={e => setLocation(e.target.value)}
                       className="w-full px-3 py-2 bg-white rounded-xl border border-slate-300 text-xs font-medium focus:ring-2 focus:ring-cyan-500 focus:outline-hidden"

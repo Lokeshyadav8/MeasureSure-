@@ -62,11 +62,10 @@ const AppContent: React.FC = () => {
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
         {activeScreen === 'GRIEVANCE_PORTAL' && <GrievanceRedressalScreen />}
         {activeScreen === 'PUBLIC_VERIFY' && <PublicQrVerificationScreen />}
-        {activeScreen === 'LANDING' && <LandingScreen />}
-        {(!isAuthenticated && activeScreen !== 'LANDING' && activeScreen !== 'PUBLIC_VERIFY' && activeScreen !== 'GRIEVANCE_PORTAL') && <LoginScreen />}
-        {(isAuthenticated && activeScreen === 'LOGIN') && <LoginScreen />}
-        {(isAuthenticated && activeScreen === 'DASHBOARD') && <DashboardScreen />}
-        {(isAuthenticated && activeScreen === 'INSPECTION_WORKSPACE') && <InspectionWorkspaceScreen />}
+        {!isAuthenticated && activeScreen !== 'PUBLIC_VERIFY' && activeScreen !== 'GRIEVANCE_PORTAL' && <LoginScreen />}
+        {isAuthenticated && activeScreen === 'LOGIN' && <LoginScreen />}
+        {isAuthenticated && (activeScreen === 'DASHBOARD' || activeScreen === 'LANDING') && <DashboardScreen />}
+        {isAuthenticated && activeScreen === 'INSPECTION_WORKSPACE' && <InspectionWorkspaceScreen />}
       </main>
 
       {/* Global Modals */}
@@ -108,15 +107,17 @@ const AppContent: React.FC = () => {
       />
 
       {/* Bharat Kosh Statutory Payment Gateway Modal */}
-      <StatutoryPaymentModal
-        isOpen={showPaymentModal}
-        instrument={activePaymentInstrument}
-        onClose={closePaymentModal}
-        onPaymentSuccess={(receipt) => {
-          processInstrumentPayment(receipt);
-          openReceiptModal(receipt);
-        }}
-      />
+      {showPaymentModal && activePaymentInstrument && (
+        <StatutoryPaymentModal
+          isOpen={showPaymentModal}
+          instrument={activePaymentInstrument}
+          onClose={closePaymentModal}
+          onPaymentSuccess={(receipt) => {
+            processInstrumentPayment(receipt);
+            openReceiptModal(receipt);
+          }}
+        />
+      )}
 
       {/* Statutory e-Challan / Treasury Form TR-5 Receipt Modal */}
       <StatutoryChallanReceiptModal

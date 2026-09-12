@@ -38,15 +38,13 @@ export const StatutoryPaymentModal: React.FC<StatutoryPaymentModalProps> = ({
   onClose,
   onPaymentSuccess
 }) => {
-  if (!isOpen || !instrument) return null;
-
   // Calculate realistic statutory fees based on category/capacity
   const feeCalculation = useMemo(() => {
     let statutoryFee = 750;
     let stampingFee = 150;
     let portalFee = 50;
 
-    switch (instrument.category) {
+    switch (instrument?.category) {
       case 'Industrial':
         statutoryFee = 1500;
         stampingFee = 250;
@@ -73,7 +71,7 @@ export const StatutoryPaymentModal: React.FC<StatutoryPaymentModalProps> = ({
 
     const total = statutoryFee + stampingFee + portalFee;
     return { statutoryFee, stampingFee, portalFee, total };
-  }, [instrument.category]);
+  }, [instrument?.category]);
 
   const [activeTab, setActiveTab] = useState<TabType>('UPI');
   const [isProcessing, setIsProcessing] = useState(false);
@@ -89,7 +87,7 @@ export const StatutoryPaymentModal: React.FC<StatutoryPaymentModalProps> = ({
 
   // --- Card State ---
   const [cardNumber, setCardNumber] = useState('');
-  const [cardHolder, setCardHolder] = useState(instrument.ownerBusiness || 'Director of Operations');
+  const [cardHolder, setCardHolder] = useState(instrument?.ownerBusiness || 'Director of Operations');
   const [cardExpiry, setCardExpiry] = useState('');
   const [cardCvv, setCardCvv] = useState('');
   const [saveCardRbi, setSaveCardRbi] = useState(true);
@@ -107,6 +105,7 @@ export const StatutoryPaymentModal: React.FC<StatutoryPaymentModalProps> = ({
 
   // Generate real dynamic Bharat QR Code for UPI
   useEffect(() => {
+    if (!isOpen || !instrument) return;
     const upiString = `upi://pay?pa=legalmetrology.govt@sbi&pn=Directorate%20of%20Legal%20Metrology&am=${feeCalculation.total}.00&cu=INR&tn=Statutory%20Fee%20${instrument.instrumentId}`;
     QRCode.toDataURL(upiString, {
       margin: 1,
@@ -118,16 +117,16 @@ export const StatutoryPaymentModal: React.FC<StatutoryPaymentModalProps> = ({
     })
       .then(url => setUpiQrDataUrl(url))
       .catch(err => console.error('Error generating UPI QR code:', err));
-  }, [feeCalculation.total, instrument.instrumentId]);
+  }, [isOpen, feeCalculation.total, instrument?.instrumentId]);
 
   // QR Timer Countdown
   useEffect(() => {
-    if (qrCountdown <= 0) return;
+    if (!isOpen || qrCountdown <= 0) return;
     const timer = setInterval(() => {
       setQrCountdown(prev => Math.max(0, prev - 1));
     }, 1000);
     return () => clearInterval(timer);
-  }, [qrCountdown]);
+  }, [isOpen, qrCountdown]);
 
   // Card Number formatting & auto-detection
   const handleCardNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -160,6 +159,7 @@ export const StatutoryPaymentModal: React.FC<StatutoryPaymentModalProps> = ({
     modeLabel: string,
     details: string
   ) => {
+    if (!instrument) return;
     setIsProcessing(true);
     setProcessingStep('Connecting to National Payments Corporation of India (NPCI)...');
 
@@ -317,6 +317,8 @@ export const StatutoryPaymentModal: React.FC<StatutoryPaymentModalProps> = ({
       `Treasury Head: 1475-00-106-01-00 • RTGS / NEFT Virtual Account`
     );
   };
+
+  if (!isOpen || !instrument) return null;
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/80 backdrop-blur-xs flex items-center justify-center p-3 sm:p-6 animate-in fade-in duration-200">
@@ -681,7 +683,7 @@ export const StatutoryPaymentModal: React.FC<StatutoryPaymentModalProps> = ({
                         setCustomVpa(e.target.value);
                         setVpaVerified(e.target.value.includes('@'));
                       }}
-                      placeholder="e.g. yourname@okaxis or 9876543210@ybl"
+                      placeholder="Enter your UPI ID (e.g. username@bank or mobile@upi)"
                       className="flex-1 px-4 py-2.5 bg-slate-50 border-2 border-slate-300 rounded-xl text-xs sm:text-sm font-mono font-bold text-slate-900 placeholder:text-slate-400 focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-purple-500"
                     />
                     <button
@@ -1128,7 +1130,7 @@ export const StatutoryPaymentModal: React.FC<StatutoryPaymentModalProps> = ({
                     }}
                     className="text-[11px] font-bold text-cyan-700 hover:text-cyan-900 underline block"
                   >
-                    Autofill Demo Corporate Credentials
+                    Pre-fill Authorized Corporate NetBanking ID (SBI Commercial)
                   </button>
                 </div>
 
