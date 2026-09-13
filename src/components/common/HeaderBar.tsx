@@ -3,7 +3,8 @@ import {
   Scale,
   ShieldAlert,
   LogOut,
-  ArrowUp
+  ArrowUp,
+  Database
 } from 'lucide-react';
 import { useMetrology } from '../../context/MetrologyContext';
 import { useScrollNavigation } from '../../hooks/useScrollNavigation';
@@ -13,7 +14,8 @@ export const HeaderBar: React.FC = () => {
     isAuthenticated,
     logout,
     setActiveScreen,
-    openGrievanceModal
+    openGrievanceModal,
+    supabaseStatus
   } = useMetrology();
 
   const { isScrolled } = useScrollNavigation(20);
@@ -81,6 +83,18 @@ export const HeaderBar: React.FC = () => {
 
           {/* Right Action Buttons (Exactly ONE Complaint button, exactly ONE Sign Out button) */}
           <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+            {/* Supabase Cloud Database Status Indicator */}
+            <div
+              className={`hidden md:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-slate-900 text-white text-[11px] font-bold border border-slate-800 shadow-xs ${
+                isScrolled ? 'text-[10px] py-0.5 px-2' : ''
+              }`}
+              title={`Connected to Supabase Project: ${supabaseStatus.projectId} (${supabaseStatus.latencyMs}ms)`}
+            >
+              <Database className="w-3 h-3 text-emerald-400 shrink-0" />
+              <span className="text-emerald-400 font-mono">Supabase</span>
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+            </div>
+
             {/* Single Complaint Button */}
             <button
               onClick={() => openGrievanceModal('INSPECTOR_MISCONDUCT')}

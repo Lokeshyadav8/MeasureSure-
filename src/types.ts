@@ -20,8 +20,13 @@ export interface UserEntity {
   email: string;
   role: UserRole;
   businessOrDepartment: string;
-  phone: string;
+  phone: string; // Contact number
   licenseNumber: string;
+  passwordHash?: string; // Salted cryptographic hashcode
+  salt?: string;
+  createdAt?: number;
+  syncedToSupabase?: boolean;
+  supabaseId?: string;
 }
 
 export type PaymentMode =

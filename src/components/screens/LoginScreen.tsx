@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Scale,
   ShieldCheck,
@@ -23,7 +23,9 @@ import {
   RefreshCw,
   Phone,
   KeyRound,
-  Check
+  Check,
+  Database,
+  X
 } from 'lucide-react';
 import { useMetrology } from '../../context/MetrologyContext';
 import { UserRole } from '../../types';
@@ -39,7 +41,16 @@ const generateCaptcha = () => {
 };
 
 export const LoginScreen: React.FC = () => {
-  const { login, registerUser, setActiveScreen, userRole } = useMetrology();
+  const {
+    login,
+    registerUser,
+    registerUserWithPassword,
+    setActiveScreen,
+    userRole,
+    supabaseStatus,
+    refreshSupabaseStatus,
+    usersList
+  } = useMetrology();
 
   const [activeRoleTab, setActiveRoleTab] = useState<UserRole>(userRole || 'BUSINESS_OWNER');
   const [authMode, setAuthMode] = useState<'LOGIN' | 'REGISTER'>('LOGIN');
@@ -55,24 +66,29 @@ export const LoginScreen: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
+  const [isUnregisteredError, setIsUnregisteredError] = useState(false);
 
   // Password Reset / Help Modal State
   const [showForgotModal, setShowForgotModal] = useState(false);
   const [forgotEmail, setForgotEmail] = useState('');
   const [otpSent, setOtpSent] = useState(false);
 
-  // Register Form States
+  // Register Form States (Encrypted User Storage)
   const [regName, setRegName] = useState('');
   const [regEmail, setRegEmail] = useState('');
   const [regRole, setRegRole] = useState<UserRole>('BUSINESS_OWNER');
   const [regBusiness, setRegBusiness] = useState('');
   const [regPhone, setRegPhone] = useState('');
   const [regLicense, setRegLicense] = useState('');
+  const [regPassword, setRegPassword] = useState('');
+  const [regConfirmPassword, setRegConfirmPassword] = useState('');
+  const [showRegPassword, setShowRegPassword] = useState(false);
 
   // Preset accounts for Official Statutory Portals
   const statutoryAccounts: {
     role: UserRole;
     portalName: string;
+    accountCategory: string;
     title: string;
     name: string;
     dept: string;
@@ -90,6 +106,7 @@ export const LoginScreen: React.FC = () => {
     {
       role: 'BUSINESS_OWNER',
       portalName: 'Business & Merchant Portal',
+      accountCategory: 'Business Account',
       title: 'Commercial Business Owner',
       name: 'Lokesh Yadav',
       dept: 'Apex Logistics & Freight Hub',
@@ -107,6 +124,7 @@ export const LoginScreen: React.FC = () => {
     {
       role: 'INSPECTOR',
       portalName: 'Legal Metrology Officer Portal',
+      accountCategory: 'Legal Account',
       title: 'Legal Metrology Inspector',
       name: 'Officer Ramakrishna',
       dept: 'Legal Metrology Directorate - Zone 1',
@@ -124,6 +142,7 @@ export const LoginScreen: React.FC = () => {
     {
       role: 'ADMIN',
       portalName: 'Directorate Central Admin',
+      accountCategory: 'Directorate Account',
       title: 'Regulatory Board Administrator',
       name: 'Chief Inspector Pavan',
       dept: 'National Metrological Regulatory Board',
@@ -141,6 +160,7 @@ export const LoginScreen: React.FC = () => {
     {
       role: 'PUBLIC',
       portalName: 'Citizen & Consumer Portal',
+      accountCategory: 'Citizens Account',
       title: 'Citizen Consumer Verifier',
       name: 'Rajesh Sharma (Citizen)',
       dept: 'Public Consumer Transparency Council',
@@ -162,6 +182,7 @@ export const LoginScreen: React.FC = () => {
     setActiveRoleTab(role);
     setErrorMessage('');
     setSuccessMessage('');
+    setIsUnregisteredError(false);
     setEmailOrId('');
     setOfficerBadge('');
     setPassword('');
@@ -175,69 +196,113 @@ export const LoginScreen: React.FC = () => {
     }
   }, [userRole]);
 
-  // Submit standard login form
+  // Submit standard login form with strict registration check
   const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!emailOrId.trim()) {
-      setErrorMessage('Please enter your registered Username, Email address, or Officer ID.');
+      setErrorMessage('Please enter your registered Email address, Phone number, or Officer ID.');
+      setIsUnregisteredError(false);
       return;
     }
 
-    if (activeRoleTab !== 'PUBLIC') {
-      if (!password.trim()) {
-        setErrorMessage('Please enter your account password.');
-        return;
-      }
-      if (!userEnteredCaptcha.trim()) {
-        setErrorMessage('Please enter the security captcha code.');
-        return;
-      }
-      if (userEnteredCaptcha.trim().toUpperCase() !== captchaCode.toUpperCase()) {
-        setErrorMessage('Invalid security captcha code. Please enter the characters shown in the security box.');
-        setCaptchaCode(generateCaptcha());
-        return;
-      }
+    if (!password.trim()) {
+      setErrorMessage('Please enter your account password.');
+      setIsUnregisteredError(false);
+      return;
+    }
+
+    if (!userEnteredCaptcha.trim()) {
+      setErrorMessage('Please enter the security captcha code.');
+      setIsUnregisteredError(false);
+      return;
+    }
+
+    if (userEnteredCaptcha.trim().toUpperCase() !== captchaCode.toUpperCase()) {
+      setErrorMessage('Invalid security captcha code. Please enter the characters shown in the security box.');
+      setIsUnregisteredError(false);
+      setCaptchaCode(generateCaptcha());
+      return;
     }
 
     setIsLoading(true);
     setErrorMessage('');
+    setIsUnregisteredError(false);
     try {
-      const match = statutoryAccounts.find(d => d.role === activeRoleTab);
-      await login(
+      const result = await login(
         activeRoleTab,
-        emailOrId,
-        password || 'CITIZEN_PUBLIC_ACCESS',
-        match?.name || emailOrId.split('@')[0] || 'Authorized User',
-        match?.dept || (activeRoleTab === 'BUSINESS_OWNER' ? 'Registered Commercial Establishment' : 'Legal Metrology Department')
+        emailOrId.trim(),
+        password.trim()
       );
-    } catch (err) {
-      setErrorMessage('Invalid authentication credentials or inactive license. Please verify your details.');
+
+      if (!result.success) {
+        if (result.isNotRegistered) {
+          setIsUnregisteredError(true);
+          setErrorMessage(result.message || "Your account is not registered. Please register your account first via 'Register New Merchant / Cadre'.");
+        } else {
+          setIsUnregisteredError(false);
+          setErrorMessage(result.message || 'Incorrect password for registered account. Please check your credentials.');
+        }
+      } else {
+        setSuccessMessage(result.message || 'Login approved! Welcome to Legal Metrology Portal.');
+      }
+    } catch (err: any) {
+      setErrorMessage(err?.message || 'Authentication error. Please verify your credentials.');
+      setIsUnregisteredError(false);
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Submit registration form
+  // Submit registration form (Stores in Supabase Database with PBKDF2 salted hashcode)
   const handleRegisterSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!regName.trim() || !regEmail.trim()) {
-      setErrorMessage('Please fill in your full name and official email address.');
+      setErrorMessage('Please fill in your full name and official registered email address.');
+      setIsUnregisteredError(false);
       return;
     }
+    if (!regPhone.trim()) {
+      setErrorMessage('Please provide your contact phone number for statutory SMS alerts and two-factor authentication.');
+      setIsUnregisteredError(false);
+      return;
+    }
+    if (!regPassword || regPassword.length < 6) {
+      setErrorMessage('Password must be at least 6 characters long to meet statutory security standards.');
+      setIsUnregisteredError(false);
+      return;
+    }
+    if (regPassword !== regConfirmPassword) {
+      setErrorMessage('Passwords do not match. Please verify and re-enter your password.');
+      setIsUnregisteredError(false);
+      return;
+    }
+
     setIsLoading(true);
     setErrorMessage('');
+    setIsUnregisteredError(false);
     try {
-      await registerUser({
-        name: regName,
-        email: regEmail,
+      const res = await registerUserWithPassword({
+        name: regName.trim(),
+        email: regEmail.trim(),
+        password: regPassword,
+        phone: regPhone.trim(),
         role: regRole,
-        businessOrDepartment: regBusiness || (regRole === 'BUSINESS_OWNER' ? 'Apex Logistics & Freight Hub' : 'Legal Metrology Directorate'),
-        phone: regPhone || '+91 98450 12345',
-        licenseNumber: regLicense || `LM-${regRole.substring(0, 3)}-${Math.floor(1000 + Math.random() * 9000)}`
+        businessOrDepartment: regBusiness.trim() || (
+          regRole === 'BUSINESS_OWNER' ? 'Commercial Establishment' :
+          regRole === 'INSPECTOR' ? 'Legal Metrology Directorate - Field Cadre' :
+          regRole === 'ADMIN' ? 'National Metrological Regulatory Board' :
+          'Public Consumer Verification Portal'
+        ),
+        licenseNumber: regLicense.trim() || `LM-${regRole.substring(0, 3)}-${Math.floor(1000 + Math.random() * 9000)}`
       });
-      setSuccessMessage(`Account registered for ${regName}. Launching designated statutory workspace...`);
-    } catch (err) {
-      setErrorMessage('Failed to complete statutory registration. Please try again.');
+
+      if (res.success) {
+        setSuccessMessage(`Account for ${regName} registered and approved successfully! Access granted.`);
+      } else {
+        setErrorMessage(res.message || 'Failed to complete registration in database.');
+      }
+    } catch (err: any) {
+      setErrorMessage(err?.message || 'Failed to complete statutory registration. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -294,7 +359,7 @@ export const LoginScreen: React.FC = () => {
                       {account.icon}
                     </span>
                     <span className="truncate">
-                      {account.role === 'BUSINESS_OWNER' ? 'Business' : account.role === 'INSPECTOR' ? 'Legal' : account.role === 'ADMIN' ? 'Directorate' : 'Citizens'}
+                      {account.accountCategory}
                     </span>
                   </button>
                 );
@@ -313,7 +378,7 @@ export const LoginScreen: React.FC = () => {
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between gap-2">
                   <h3 className="text-sm sm:text-base font-black text-slate-900 truncate">
-                    {activeRoleData.portalName}
+                    {activeRoleData.accountCategory}
                   </h3>
                   <span className={`px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wide border ${activeRoleData.badgeColor}`}>
                     {activeRoleTab === 'BUSINESS_OWNER' ? 'BUSINESS' : activeRoleTab === 'INSPECTOR' ? 'LEGAL OFFICER' : activeRoleTab === 'ADMIN' ? 'DIRECTORATE' : 'CITIZENS'}
@@ -325,13 +390,43 @@ export const LoginScreen: React.FC = () => {
               </div>
             </div>
 
-            {/* Error Message */}
-            {errorMessage && (
+            {/* Error Message & Unregistered Account Callout */}
+            {isUnregisteredError ? (
+              <div className="p-4 bg-rose-50 border-2 border-rose-300 rounded-2xl space-y-3 animate-in fade-in duration-200 shadow-sm">
+                <div className="flex items-start gap-3">
+                  <div className="p-2 bg-rose-100 rounded-xl text-rose-700 shrink-0 mt-0.5">
+                    <ShieldAlert className="w-5 h-5" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h4 className="text-xs font-black text-rose-950 uppercase tracking-wide">
+                      Your Account Is Not Registered
+                    </h4>
+                    <p className="text-xs text-rose-800 mt-1 leading-relaxed">
+                      {errorMessage || `The account for "${emailOrId}" is not registered in the database. Under Statutory Metrology Rules, please register your account first before attempting to sign in.`}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAuthMode('REGISTER');
+                    setRegRole(activeRoleTab);
+                    setRegEmail(emailOrId);
+                    setIsUnregisteredError(false);
+                    setErrorMessage('');
+                  }}
+                  className="w-full py-2.5 px-4 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-black shadow-md flex items-center justify-center gap-2 transition-all cursor-pointer"
+                >
+                  <UserPlus className="w-4 h-4" />
+                  <span>Register {activeRoleData.accountCategory} First via "Register New Merchant / Cadre" →</span>
+                </button>
+              </div>
+            ) : errorMessage ? (
               <div className="p-3.5 bg-rose-50 border border-rose-200 rounded-2xl flex items-center gap-2.5 text-xs text-rose-800 font-bold animate-in fade-in duration-200">
                 <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
                 <span>{errorMessage}</span>
               </div>
-            )}
+            ) : null}
 
             {/* Success Message */}
             {successMessage && (
@@ -346,8 +441,11 @@ export const LoginScreen: React.FC = () => {
               <div className="flex items-center gap-3">
                 <button
                   type="button"
-                  onClick={() => setAuthMode('LOGIN')}
-                  className={`text-xs font-black pb-1 transition-colors relative ${
+                  onClick={() => {
+                    setAuthMode('LOGIN');
+                    setIsUnregisteredError(false);
+                  }}
+                  className={`text-xs font-black pb-1 transition-colors relative cursor-pointer ${
                     authMode === 'LOGIN'
                       ? 'text-slate-950 border-b-2 border-cyan-600'
                       : 'text-slate-500 hover:text-slate-800'
@@ -361,8 +459,9 @@ export const LoginScreen: React.FC = () => {
                   onClick={() => {
                     setAuthMode('REGISTER');
                     setRegRole(activeRoleTab);
+                    setIsUnregisteredError(false);
                   }}
-                  className={`text-xs font-black pb-1 transition-colors relative ${
+                  className={`text-xs font-black pb-1 transition-colors relative cursor-pointer ${
                     authMode === 'REGISTER'
                       ? 'text-slate-950 border-b-2 border-cyan-600'
                       : 'text-slate-500 hover:text-slate-800'
@@ -372,11 +471,10 @@ export const LoginScreen: React.FC = () => {
                 </button>
               </div>
 
-              {activeRoleTab === 'PUBLIC' && (
-                <span className="text-[10px] font-extrabold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-full">
-                  Public Open Access
-                </span>
-              )}
+              <div className="text-[10px] font-bold text-slate-500 flex items-center gap-1.5">
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+                <span>Statutory Encrypted Portal</span>
+              </div>
             </div>
 
             {/* Mode 1: LOGIN FORM */}
@@ -388,12 +486,12 @@ export const LoginScreen: React.FC = () => {
                   <label className="text-xs font-black text-slate-800 flex items-center justify-between">
                     <span>
                       {activeRoleTab === 'INSPECTOR'
-                        ? 'Legal Metrology Inspector Govt Email or Officer ID'
+                        ? 'Legal Account Email, Officer ID, or Phone'
                         : activeRoleTab === 'ADMIN'
-                        ? 'Directorate Central Administrative Email'
+                        ? 'Directorate Central Administrative Email or Phone'
                         : activeRoleTab === 'PUBLIC'
-                        ? 'Citizen Email or Registered Mobile Number (Optional)'
-                        : 'Registered Business / Merchant Email'}
+                        ? 'Citizens Account Email or Registered Phone'
+                        : 'Business Account Registered Email or Phone'}
                     </span>
                     <span className="text-[10px] text-slate-500 font-semibold">NIC Portal Credential</span>
                   </label>
@@ -404,8 +502,11 @@ export const LoginScreen: React.FC = () => {
                     <input
                       type="text"
                       value={emailOrId}
-                      onChange={(e) => setEmailOrId(e.target.value)}
-                      placeholder="Enter your email"
+                      onChange={(e) => {
+                        setEmailOrId(e.target.value);
+                        if (isUnregisteredError) setIsUnregisteredError(false);
+                      }}
+                      placeholder="Enter registered email or contact number"
                       className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:bg-white focus:border-cyan-600 focus:ring-2 focus:ring-cyan-500/20 outline-hidden transition-all"
                     />
                   </div>
@@ -434,82 +535,67 @@ export const LoginScreen: React.FC = () => {
                 )}
 
                 {/* Dynamic Field 3: Password / Security Key */}
-                {activeRoleTab !== 'PUBLIC' ? (
-                  <div className="space-y-1.5">
-                    <div className="flex items-center justify-between">
-                      <label className="text-xs font-black text-slate-800">
-                        {activeRoleTab === 'ADMIN' ? 'Directorate 2FA Security Key' : 'Portal Password / Digital PIN'}
-                      </label>
-                      <span className="text-[10px] text-slate-500 font-semibold">Mandatory Credential</span>
-                    </div>
-                    <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
-                        <Lock className="w-4 h-4" />
-                      </div>
-                      <input
-                        type={showPassword ? 'text' : 'password'}
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        placeholder="Enter your password"
-                        className="w-full pl-10 pr-10 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:bg-white focus:border-cyan-600 focus:ring-2 focus:ring-cyan-500/20 outline-hidden transition-all"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-500 hover:text-slate-800"
-                      >
-                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                      </button>
-                    </div>
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-black text-slate-800">
+                      {activeRoleTab === 'ADMIN' ? 'Directorate 2FA Security Key' : activeRoleTab === 'PUBLIC' ? 'Citizen Account Password / PIN' : 'Portal Password / Digital PIN'}
+                    </label>
+                    <span className="text-[10px] text-slate-500 font-semibold">Encrypted PBKDF2</span>
                   </div>
-                ) : (
-                  /* Public Role Instant Access Note */
-                  <div className="p-3.5 bg-emerald-50 rounded-2xl border border-emerald-200/80 text-xs text-emerald-900 font-medium space-y-1">
-                    <div className="font-extrabold flex items-center gap-1.5 text-emerald-800">
-                      <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                      Direct Citizen Transparency Access
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
+                      <Lock className="w-4 h-4" />
                     </div>
-                    <p className="text-[11px] text-emerald-700 leading-relaxed">
-                      Indian citizens do not require passwords to verify holographic tamper seals, scan QR codes on scales, or file short-measurement complaints.
-                    </p>
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="Enter your account password"
+                      className="w-full pl-10 pr-10 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:bg-white focus:border-cyan-600 focus:ring-2 focus:ring-cyan-500/20 outline-hidden transition-all"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-500 hover:text-slate-800 cursor-pointer"
+                    >
+                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
                   </div>
-                )}
+                </div>
 
                 {/* Government Security Captcha Verification */}
-                {activeRoleTab !== 'PUBLIC' && (
-                  <div className="space-y-1.5 pt-1">
-                    <label className="text-xs font-black text-slate-800 flex items-center justify-between">
-                      <span>Security Captcha Code</span>
-                      <span className="text-[10px] text-slate-500 font-semibold">Bot & Spam Prevention</span>
-                    </label>
-                    <div className="flex items-center gap-3">
-                      {/* Security Captcha Display */}
-                      <div
-                        className="px-4 py-2 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 text-cyan-300 font-mono text-base font-black tracking-widest rounded-xl border border-slate-700 shadow-inner select-none flex items-center"
-                      >
-                        <span className="line-through decoration-cyan-500/40">{captchaCode}</span>
-                      </div>
-
-                      <button
-                        type="button"
-                        onClick={() => setCaptchaCode(generateCaptcha())}
-                        className="p-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl transition-all cursor-pointer"
-                        title="Generate New Security Captcha"
-                      >
-                        <RefreshCw className="w-4 h-4" />
-                      </button>
-
-                      <input
-                        type="text"
-                        value={userEnteredCaptcha}
-                        onChange={(e) => setUserEnteredCaptcha(e.target.value)}
-                        placeholder="Enter captcha code"
-                        maxLength={6}
-                        className="flex-1 px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-mono font-black text-slate-900 focus:bg-white focus:border-cyan-600 focus:ring-2 focus:ring-cyan-500/20 outline-hidden transition-all uppercase placeholder:font-sans placeholder:font-medium"
-                      />
+                <div className="space-y-1.5 pt-1">
+                  <label className="text-xs font-black text-slate-800 flex items-center justify-between">
+                    <span>Security Captcha Code</span>
+                    <span className="text-[10px] text-slate-500 font-semibold">Bot & Spam Prevention</span>
+                  </label>
+                  <div className="flex items-center gap-3">
+                    {/* Security Captcha Display */}
+                    <div
+                      className="px-4 py-2 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 text-cyan-300 font-mono text-base font-black tracking-widest rounded-xl border border-slate-700 shadow-inner select-none flex items-center"
+                    >
+                      <span className="line-through decoration-cyan-500/40">{captchaCode}</span>
                     </div>
+
+                    <button
+                      type="button"
+                      onClick={() => setCaptchaCode(generateCaptcha())}
+                      className="p-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl transition-all cursor-pointer"
+                      title="Generate New Security Captcha"
+                    >
+                      <RefreshCw className="w-4 h-4" />
+                    </button>
+
+                    <input
+                      type="text"
+                      value={userEnteredCaptcha}
+                      onChange={(e) => setUserEnteredCaptcha(e.target.value)}
+                      placeholder="Enter captcha"
+                      maxLength={6}
+                      className="flex-1 px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-mono font-black text-slate-900 focus:bg-white focus:border-cyan-600 focus:ring-2 focus:ring-cyan-500/20 outline-hidden transition-all uppercase placeholder:font-sans placeholder:font-medium"
+                    />
                   </div>
-                )}
+                </div>
 
                 {/* Remember Me & Statutory Disclaimer */}
                 <div className="flex items-center justify-between pt-1">
@@ -518,14 +604,14 @@ export const LoginScreen: React.FC = () => {
                       type="checkbox"
                       checked={rememberMe}
                       onChange={(e) => setRememberMe(e.target.checked)}
-                      className="w-4 h-4 rounded-md text-cyan-600 focus:ring-cyan-500 border-slate-300"
+                      className="w-4 h-4 rounded-md text-cyan-600 focus:ring-cyan-500 border-slate-300 cursor-pointer"
                     />
                     <span className="text-xs font-bold text-slate-700">Stay logged in on this terminal</span>
                   </label>
                   <button
                     type="button"
                     onClick={() => setShowForgotModal(true)}
-                    className="text-[11px] font-bold text-cyan-700 hover:text-cyan-900 hover:underline"
+                    className="text-[11px] font-bold text-cyan-700 hover:text-cyan-900 hover:underline cursor-pointer"
                   >
                     Forgot Password / PIN?
                   </button>
@@ -550,11 +636,7 @@ export const LoginScreen: React.FC = () => {
                   ) : (
                     <>
                       <LogIn className="w-4 h-4" />
-                      <span>
-                        {activeRoleTab === 'PUBLIC'
-                          ? 'Enter Citizen & Consumer Portal'
-                          : `Authenticate into ${activeRoleData.portalName}`}
-                      </span>
+                      <span>Statutory Sign In • {activeRoleData.accountCategory}</span>
                       <ArrowRight className="w-4 h-4" />
                     </>
                   )}
@@ -591,16 +673,16 @@ export const LoginScreen: React.FC = () => {
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="space-y-1">
-                    <label className="text-xs font-black text-slate-800">Portal User Category</label>
+                    <label className="text-xs font-black text-slate-800">Select Account Category *</label>
                     <select
                       value={regRole}
                       onChange={(e) => setRegRole(e.target.value as UserRole)}
-                      className="w-full px-3.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:bg-white focus:border-cyan-600 outline-hidden"
+                      className="w-full px-3.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:bg-white focus:border-cyan-600 outline-hidden cursor-pointer"
                     >
-                      <option value="BUSINESS_OWNER">Commercial Merchant / Business</option>
-                      <option value="INSPECTOR">Legal Metrology Inspector Cadre</option>
-                      <option value="ADMIN">Directorate Central Administrator</option>
-                      <option value="PUBLIC">Citizen & Consumer Advocate</option>
+                      <option value="BUSINESS_OWNER">Business Account (Commercial Merchant / Establishment)</option>
+                      <option value="INSPECTOR">Legal Account (Legal Metrology Inspector Cadre)</option>
+                      <option value="ADMIN">Directorate Account (Directorate Central Administrator)</option>
+                      <option value="PUBLIC">Citizens Account (Citizen & Consumer Advocate)</option>
                     </select>
                   </div>
                   <div className="space-y-1">
@@ -617,14 +699,21 @@ export const LoginScreen: React.FC = () => {
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="space-y-1">
-                    <label className="text-xs font-black text-slate-800">Mobile Number (WhatsApp/SMS Alerts)</label>
-                    <input
-                      type="tel"
-                      value={regPhone}
-                      onChange={(e) => setRegPhone(e.target.value)}
-                      placeholder="Enter 10-digit mobile number"
-                      className="w-full px-3.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:bg-white focus:border-cyan-600 outline-hidden"
-                    />
+                    <label className="text-xs font-black text-slate-800 flex items-center justify-between">
+                      <span>Contact Phone Number *</span>
+                      <span className="text-[10px] text-cyan-600 font-bold">SMS / 2FA</span>
+                    </label>
+                    <div className="relative">
+                      <Phone className="w-3.5 h-3.5 absolute left-3 top-3 text-slate-400" />
+                      <input
+                        type="tel"
+                        required
+                        value={regPhone}
+                        onChange={(e) => setRegPhone(e.target.value)}
+                        placeholder="e.g. +91 98450 12345"
+                        className="w-full pl-9 pr-3.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:bg-white focus:border-cyan-600 outline-hidden font-mono"
+                      />
+                    </div>
                   </div>
                   <div className="space-y-1">
                     <label className="text-xs font-black text-slate-800">Statutory License / GSTIN / Badge</label>
@@ -632,10 +721,75 @@ export const LoginScreen: React.FC = () => {
                       type="text"
                       value={regLicense}
                       onChange={(e) => setRegLicense(e.target.value)}
-                      placeholder="Enter license, GSTIN, or badge ID"
+                      placeholder="e.g. LM-BUS-9821 / 29AAAAA0000A1Z5"
                       className="w-full px-3.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:bg-white focus:border-cyan-600 outline-hidden font-mono"
                     />
                   </div>
+                </div>
+
+                {/* Secure Password & Confirm Password with Cryptographic Hashcode Safeguard */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-xs font-black text-slate-800 flex items-center justify-between">
+                      <span>Account Password *</span>
+                      <span className="text-[10px] text-emerald-600 font-bold">Min 6 chars</span>
+                    </label>
+                    <div className="relative">
+                      <Lock className="w-3.5 h-3.5 absolute left-3 top-3 text-slate-400" />
+                      <input
+                        type={showRegPassword ? 'text' : 'password'}
+                        required
+                        value={regPassword}
+                        onChange={(e) => setRegPassword(e.target.value)}
+                        placeholder="Create strong password"
+                        className="w-full pl-9 pr-9 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:bg-white focus:border-cyan-600 outline-hidden"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowRegPassword(!showRegPassword)}
+                        className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600 p-0.5"
+                      >
+                        {showRegPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                      </button>
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-black text-slate-800 flex items-center justify-between">
+                      <span>Confirm Password *</span>
+                      {regConfirmPassword && (
+                        <span className={`text-[10px] font-bold ${regPassword === regConfirmPassword ? 'text-emerald-600' : 'text-rose-600'}`}>
+                          {regPassword === regConfirmPassword ? '✓ Matches' : '✗ Mismatch'}
+                        </span>
+                      )}
+                    </label>
+                    <div className="relative">
+                      <Lock className="w-3.5 h-3.5 absolute left-3 top-3 text-slate-400" />
+                      <input
+                        type={showRegPassword ? 'text' : 'password'}
+                        required
+                        value={regConfirmPassword}
+                        onChange={(e) => setRegConfirmPassword(e.target.value)}
+                        placeholder="Re-enter password"
+                        className="w-full pl-9 pr-3.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:bg-white focus:border-cyan-600 outline-hidden"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Data Breach Encryption Notice */}
+                <div className="p-3 bg-slate-900 text-slate-200 rounded-xl border border-slate-800 text-[11px] space-y-1.5 shadow-xs">
+                  <div className="flex items-center justify-between text-cyan-300 font-bold">
+                    <div className="flex items-center gap-1.5">
+                      <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+                      <span>Zero-Plaintext Credential Encryption</span>
+                    </div>
+                    <span className="text-[10px] px-1.5 py-0.5 rounded-sm bg-emerald-500/20 text-emerald-300 font-mono">
+                      PBKDF2-SHA256
+                    </span>
+                  </div>
+                  <p className="text-slate-400 leading-snug text-[10.5px]">
+                    All credentials are encrypted with <strong>25,000 PBKDF2 iterations</strong> and unique <strong>128-bit cryptographic salts</strong>. Plaintext passwords are never stored, protecting user accounts against unauthorized access or breaches.
+                  </p>
                 </div>
 
                 <button
@@ -643,8 +797,15 @@ export const LoginScreen: React.FC = () => {
                   disabled={isLoading}
                   className="w-full py-3 px-4 bg-slate-950 hover:bg-slate-800 text-white rounded-2xl text-xs sm:text-sm font-black shadow-md transition-all active:scale-98 flex items-center justify-center gap-2 cursor-pointer"
                 >
-                  <UserPlus className="w-4 h-4 text-cyan-400" />
-                  <span>Register & Launch Statutory Workspace</span>
+                  {isLoading ? (
+                    <span>Encrypting & Registering Account...</span>
+                  ) : (
+                    <>
+                      <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                      <span>Complete Statutory Registration</span>
+                      <ArrowRight className="w-4 h-4 text-cyan-400" />
+                    </>
+                  )}
                 </button>
               </form>
             )}
@@ -659,7 +820,7 @@ export const LoginScreen: React.FC = () => {
 
         </div>
 
-        {/* Right Side: Security Policies & Portal Advisory (5 cols) */}
+        {/* Right Side: Security Policies & Statutory Information (5 cols) */}
         <div className="lg:col-span-5 space-y-4">
           
           <div className="p-5 bg-slate-900 text-white rounded-3xl border border-slate-800 shadow-lg space-y-3">
