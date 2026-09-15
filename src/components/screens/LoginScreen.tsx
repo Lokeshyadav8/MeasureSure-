@@ -108,10 +108,10 @@ export const LoginScreen: React.FC = () => {
       portalName: 'Business & Merchant Portal',
       accountCategory: 'Business Account',
       title: 'Commercial Business Owner',
-      name: 'Lokesh Yadav',
-      dept: 'Apex Logistics & Freight Hub',
-      email: 'lokesh@apexlogistics.com',
-      badge: 'LM-BUS-9821',
+      name: 'Lokeshyadav',
+      dept: 'Startups / Commercial Establishment',
+      email: 'lokeshthangedipally02@gmail.com',
+      badge: '999999999',
       badgeLabel: 'Merchant License / GSTIN',
       icon: <Scale className="w-5 h-5" />,
       color: 'from-cyan-500 to-blue-600',
@@ -126,10 +126,10 @@ export const LoginScreen: React.FC = () => {
       portalName: 'Legal Metrology Officer Portal',
       accountCategory: 'Legal Account',
       title: 'Legal Metrology Inspector',
-      name: 'Officer Ramakrishna',
-      dept: 'Legal Metrology Directorate - Zone 1',
-      email: 'Rama.krishna@metrology.gov',
-      badge: 'LMO-CERT-4410',
+      name: 'Officer Shreyareddy',
+      dept: 'Metro fuel logistics / Directorate Zone',
+      email: 'narappashreyareddy@gmail.com',
+      badge: 'lm-bus-5502',
       badgeLabel: 'Inspector Cadre ID',
       icon: <ShieldCheck className="w-5 h-5" />,
       color: 'from-indigo-500 to-blue-700',
@@ -140,32 +140,14 @@ export const LoginScreen: React.FC = () => {
       description: 'Verify field instruments, conduct multi-point standard weight tests, run Gemini AI anomaly detection, and apply tamper-evident wire seals.'
     },
     {
-      role: 'ADMIN',
-      portalName: 'Directorate Central Admin',
-      accountCategory: 'Directorate Account',
-      title: 'Regulatory Board Administrator',
-      name: 'Chief Inspector Pavan',
-      dept: 'National Metrological Regulatory Board',
-      email: 'pavan@govmetrology.state.gov',
-      badge: 'EXEC-MET-001',
-      badgeLabel: 'Directorate Badge',
-      icon: <Award className="w-5 h-5" />,
-      color: 'from-amber-500 to-orange-600',
-      borderHover: 'hover:border-amber-400',
-      bgAccent: 'bg-amber-50',
-      textColor: 'text-amber-700',
-      badgeColor: 'bg-amber-100 text-amber-800 border-amber-200',
-      description: 'National regulatory oversight, state compliance radar, immutable audit logs, officer cadre dispatch, and certificate revocation.'
-    },
-    {
       role: 'PUBLIC',
       portalName: 'Citizen & Consumer Portal',
       accountCategory: 'Citizens Account',
       title: 'Citizen Consumer Verifier',
-      name: 'Rajesh Sharma (Citizen)',
+      name: 'Lokesh',
       dept: 'Public Consumer Transparency Council',
-      email: 'consumer@publicportal.gov',
-      badge: 'CITIZEN-VERIFIER',
+      email: 'lokii.personall@gmail.com',
+      badge: '777777777',
       badgeLabel: 'Public Access',
       icon: <Users className="w-5 h-5" />,
       color: 'from-emerald-500 to-teal-600',
@@ -227,6 +209,7 @@ export const LoginScreen: React.FC = () => {
     setIsLoading(true);
     setErrorMessage('');
     setIsUnregisteredError(false);
+
     try {
       const result = await login(
         activeRoleTab,
@@ -235,14 +218,11 @@ export const LoginScreen: React.FC = () => {
       );
 
       if (!result.success) {
-        if (result.isNotRegistered) {
-          setIsUnregisteredError(true);
-          setErrorMessage(result.message || "Your account is not registered. Please register your account first via 'Register New Merchant / Cadre'.");
-        } else {
-          setIsUnregisteredError(false);
-          setErrorMessage(result.message || 'Incorrect password for registered account. Please check your credentials.');
-        }
+        setIsUnregisteredError(result.isNotRegistered ?? true);
+        setErrorMessage(result.message || 'Account not registered or details incorrect. Please check your credentials or register an account.');
       } else {
+        setIsUnregisteredError(false);
+        setErrorMessage('');
         setSuccessMessage(result.message || 'Login approved! Welcome to Legal Metrology Portal.');
       }
     } catch (err: any) {
@@ -290,7 +270,6 @@ export const LoginScreen: React.FC = () => {
         businessOrDepartment: regBusiness.trim() || (
           regRole === 'BUSINESS_OWNER' ? 'Commercial Establishment' :
           regRole === 'INSPECTOR' ? 'Legal Metrology Directorate - Field Cadre' :
-          regRole === 'ADMIN' ? 'National Metrological Regulatory Board' :
           'Public Consumer Verification Portal'
         ),
         licenseNumber: regLicense.trim() || `LM-${regRole.substring(0, 3)}-${Math.floor(1000 + Math.random() * 9000)}`
@@ -326,7 +305,7 @@ export const LoginScreen: React.FC = () => {
           National Legal Metrology Single Sign-On (SSO)
         </h1>
         <p className="text-xs sm:text-sm text-slate-600 max-w-2xl mx-auto font-medium">
-          Official digital portal for <strong>Commercial Businesses</strong>, <strong>Legal Metrology Officers</strong>, <strong>Directorate Administrators</strong>, and <strong>Indian Citizens</strong> under Legal Metrology Act, 2009.
+          Official digital portal for <strong>Commercial Businesses</strong>, <strong>Legal Metrology Officers</strong>, and <strong>Indian Citizens</strong> under Legal Metrology Act, 2009.
         </p>
       </div>
 
@@ -339,9 +318,9 @@ export const LoginScreen: React.FC = () => {
           <div className="p-3 bg-slate-100/90 border-b border-slate-200">
             <div className="text-[11px] font-black uppercase tracking-wider text-slate-700 px-2 pb-2 flex items-center justify-between">
               <span>Select Authorized Portal Category:</span>
-              <span className="text-[10px] text-slate-500 font-semibold">4 Designated User Portals</span>
+              <span className="text-[10px] text-slate-500 font-semibold">3 Designated User Portals</span>
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-1.5">
               {statutoryAccounts.map(account => {
                 const isActive = activeRoleTab === account.role;
                 return (
@@ -399,10 +378,10 @@ export const LoginScreen: React.FC = () => {
                   </div>
                   <div className="flex-1 min-w-0">
                     <h4 className="text-xs font-black text-rose-950 uppercase tracking-wide">
-                      Your Account Is Not Registered
+                      Account Not Registered or Details Incorrect
                     </h4>
                     <p className="text-xs text-rose-800 mt-1 leading-relaxed">
-                      {errorMessage || `The account for "${emailOrId}" is not registered in the database. Under Statutory Metrology Rules, please register your account first before attempting to sign in.`}
+                      {errorMessage || `The account credentials entered are incorrect or not registered in this portal. Under Statutory Metrology Rules, please check your details or register an account.`}
                     </p>
                   </div>
                 </div>
@@ -505,6 +484,7 @@ export const LoginScreen: React.FC = () => {
                       onChange={(e) => {
                         setEmailOrId(e.target.value);
                         if (isUnregisteredError) setIsUnregisteredError(false);
+                        if (errorMessage) setErrorMessage('');
                       }}
                       placeholder="Enter registered email or contact number"
                       className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:bg-white focus:border-cyan-600 focus:ring-2 focus:ring-cyan-500/20 outline-hidden transition-all"
@@ -549,7 +529,10 @@ export const LoginScreen: React.FC = () => {
                     <input
                       type={showPassword ? 'text' : 'password'}
                       value={password}
-                      onChange={(e) => setPassword(e.target.value)}
+                      onChange={(e) => {
+                        setPassword(e.target.value);
+                        if (errorMessage) setErrorMessage('');
+                      }}
                       placeholder="Enter your account password"
                       className="w-full pl-10 pr-10 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:bg-white focus:border-cyan-600 focus:ring-2 focus:ring-cyan-500/20 outline-hidden transition-all"
                     />
@@ -681,7 +664,6 @@ export const LoginScreen: React.FC = () => {
                     >
                       <option value="BUSINESS_OWNER">Business Account (Commercial Merchant / Establishment)</option>
                       <option value="INSPECTOR">Legal Account (Legal Metrology Inspector Cadre)</option>
-                      <option value="ADMIN">Directorate Account (Directorate Central Administrator)</option>
                       <option value="PUBLIC">Citizens Account (Citizen & Consumer Advocate)</option>
                     </select>
                   </div>
@@ -870,16 +852,6 @@ export const LoginScreen: React.FC = () => {
 
               <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
                 <div className="font-bold text-slate-900 text-[11px] flex items-center justify-between">
-                  <span>Directorate Regulatory Authority</span>
-                  <span className="text-[10px] text-amber-700 font-mono font-bold">Portal 3</span>
-                </div>
-                <div className="text-[11px] text-slate-600 mt-0.5">
-                  National compliance radar, immutable audit logs, officer cadre dispatch, and revocations.
-                </div>
-              </div>
-
-              <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
-                <div className="font-bold text-slate-900 text-[11px] flex items-center justify-between">
                   <span>Citizen Consumer Verifier</span>
                   <span className="text-[10px] text-emerald-700 font-mono font-bold">Public</span>
                 </div>
@@ -904,6 +876,26 @@ export const LoginScreen: React.FC = () => {
         </div>
 
       </div>
+
+      {/* Footer Section with Admin Portal Link */}
+      <footer id="login-footer" className="w-full max-w-5xl mt-10 pt-6 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500">
+        <div className="flex items-center gap-2">
+          <ShieldAlert className="w-4 h-4 text-slate-400" />
+          <span>Department of Consumer Affairs • Legal Metrology Act, 2009 Standards & Compliance</span>
+        </div>
+        
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            id="footer-admin-portal-btn"
+            onClick={() => setActiveScreen('ADMIN_PORTAL')}
+            className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs shadow-sm hover:shadow transition-all group"
+          >
+            <Lock className="w-3.5 h-3.5 text-amber-400 group-hover:rotate-12 transition-transform" />
+            <span>Administrator Portal (Login / Setup)</span>
+          </button>
+        </div>
+      </footer>
 
       {/* Forgot Password / Recovery Modal */}
       {showForgotModal && (

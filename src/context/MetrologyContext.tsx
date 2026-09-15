@@ -13,7 +13,8 @@ import {
   UserEntity,
   GrievanceReportEntity,
   GrievanceCategory,
-  PaymentReceiptEntity
+  PaymentReceiptEntity,
+  LoginAuditRecord
 } from '../types';
 import {
   INITIAL_USERS,
@@ -21,7 +22,8 @@ import {
   INITIAL_REQUESTS,
   INITIAL_CERTIFICATES,
   INITIAL_AUDIT_LOGS,
-  INITIAL_GRIEVANCES
+  INITIAL_GRIEVANCES,
+  INITIAL_LOGINS
 } from '../data/seedData';
 import { GeminiMetrologyService } from '../services/geminiService';
 import {
@@ -32,7 +34,11 @@ import {
   registerUserToSupabase,
   authenticateUser,
   checkSupabaseConnection,
-  RegisteredUserRecord
+  RegisteredUserRecord,
+  fetchAdminSlotStatus,
+  fetchAdminLogins,
+  recordLoginEvent,
+  getStoredLogins
 } from '../services/supabaseService';
 import confetti from 'canvas-confetti';
 import { getPublicVerificationUrl, extractVerificationCode } from '../utils/verification';
@@ -121,8 +127,27 @@ interface MetrologyContextType {
   };
   refreshSupabaseStatus: () => Promise<void>;
 
+  // Master Admin Single Slot & Login Records
+  adminSlotAvailable: boolean;
+  existingMasterAdmin: UserEntity | null;
+  loginRecords: LoginAuditRecord[];
+  refreshAdminSlotStatus: () => Promise<void>;
+  refreshLoginRecords: () => Promise<void>;
+  registerAdminSlot: (adminData: {
+    name: string;
+    email: string;
+    password: string;
+    phone?: string;
+    department?: string;
+  }) => Promise<{ success: boolean; message: string; user?: UserEntity }>;
+  recordLogin: (user: UserEntity, portalName?: string) => Promise<void>;
+
   // Actions
-  login: (role: UserRole, emailOrId?: string, passwordOrPin?: string, customName?: string, customDept?: string) => Promise<{ success: boolean; isNotRegistered?: boolean; message?: string }>;
+  login: (role: UserRole, emailOrId?: string, passwordOrPin?: string, customName?: string, customDept?: string) => Promise<{
+    success: boolean;
+    isNotRegistered?: boolean;
+    message?: string;
+  }>;
   logout: () => void;
   registerUser: (userData: Omit<UserEntity, 'userId'>) => Promise<{ success: boolean; message?: string }>;
   registerUserWithPassword: (payload: {
@@ -209,11 +234,11 @@ export const MetrologyProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   const initialData = loadSaved();
 
-  // Helper to deduplicate users by both unique userId and normalized email
+  // Helper to deduplicate users by both unique userId and normalized email+role pair
   const mergeAndDeduplicateUsers = (...userArrays: (UserEntity[] | undefined)[]): UserEntity[] => {
     const result: UserEntity[] = [];
     const seenIds = new Set<string>();
-    const seenEmails = new Set<string>();
+    const seenEmailRoles = new Set<string>();
 
     for (const arr of userArrays) {
       if (!arr) continue;
@@ -221,12 +246,13 @@ export const MetrologyProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         if (!u || !u.userId) continue;
         const cleanId = u.userId.trim();
         const cleanEmail = (u.email || '').trim().toLowerCase();
+        const emailRoleKey = `${cleanEmail}:::${u.role}`;
 
         if (seenIds.has(cleanId)) continue;
-        if (cleanEmail && seenEmails.has(cleanEmail)) continue;
+        if (cleanEmail && seenEmailRoles.has(emailRoleKey)) continue;
 
         seenIds.add(cleanId);
-        if (cleanEmail) seenEmails.add(cleanEmail);
+        if (cleanEmail) seenEmailRoles.add(emailRoleKey);
         result.push(u);
       }
     }
@@ -260,6 +286,56 @@ export const MetrologyProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     latencyMs: 35
   });
 
+  // Master Admin Single Slot & Login Records State
+  const [adminSlotAvailable, setAdminSlotAvailable] = useState<boolean>(() => {
+    return !initialMergedUsers.some(u => u.role === 'ADMIN');
+  });
+  const [existingMasterAdmin, setExistingMasterAdmin] = useState<UserEntity | null>(() => {
+    return initialMergedUsers.find(u => u.role === 'ADMIN') || null;
+  });
+  const [loginRecords, setLoginRecords] = useState<LoginAuditRecord[]>(() => {
+    const stored = getStoredLogins();
+    return stored.length > 0 ? stored : INITIAL_LOGINS;
+  });
+
+  const refreshAdminSlotStatus = useCallback(async () => {
+    try {
+      const status = await fetchAdminSlotStatus();
+      setAdminSlotAvailable(status.slotAvailable);
+      if (status.masterAdmin) {
+        setExistingMasterAdmin(status.masterAdmin);
+      } else {
+        const found = usersList.find(u => u.role === 'ADMIN');
+        setExistingMasterAdmin(found || null);
+        setAdminSlotAvailable(!found);
+      }
+    } catch {
+      const found = usersList.find(u => u.role === 'ADMIN');
+      setExistingMasterAdmin(found || null);
+      setAdminSlotAvailable(!found);
+    }
+  }, [usersList]);
+
+  const refreshLoginRecords = useCallback(async () => {
+    try {
+      const logs = await fetchAdminLogins();
+      if (logs && logs.length > 0) {
+        setLoginRecords(logs);
+      }
+    } catch {
+      setLoginRecords(getStoredLogins());
+    }
+  }, []);
+
+  const recordLogin = useCallback(async (user: UserEntity, portalName?: string) => {
+    try {
+      const logged = await recordLoginEvent(user, portalName);
+      setLoginRecords(prev => [logged, ...prev.filter(l => l.id !== logged.id)].slice(0, 200));
+    } catch (e) {
+      console.error('Error recording login event:', e);
+    }
+  }, []);
+
   const refreshSupabaseStatus = useCallback(async () => {
     try {
       const res = await fetch('/api/supabase/status');
@@ -287,6 +363,8 @@ export const MetrologyProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   // Sync users with server database and ping Supabase on load
   useEffect(() => {
     refreshSupabaseStatus();
+    refreshAdminSlotStatus();
+    refreshLoginRecords();
 
     fetch('/api/users')
       .then(res => res.json())
@@ -301,7 +379,9 @@ export const MetrologyProvider: React.FC<{ children: React.ReactNode }> = ({ chi
             businessOrDepartment: u.businessOrDepartment,
             licenseNumber: u.licenseNumber,
             syncedToSupabase: true,
-            createdAt: u.createdAt
+            createdAt: u.createdAt,
+            passwordHash: u.passwordHash,
+            salt: u.salt
           }));
           setUsersList(prev => mergeAndDeduplicateUsers(serverUsers, prev));
         }
@@ -309,7 +389,7 @@ export const MetrologyProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       .catch(() => {
         // Local mode fallback
       });
-  }, [refreshSupabaseStatus]);
+  }, [refreshSupabaseStatus, refreshAdminSlotStatus, refreshLoginRecords]);
 
   const getInitialTab = (role: UserRole): 'INSTRUMENTS' | 'REQUESTS' | 'ADMIN' | 'PUBLIC_VERIFY' | 'GRIEVANCES' => {
     if (role === 'PUBLIC') return 'PUBLIC_VERIFY';
@@ -325,7 +405,24 @@ export const MetrologyProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     initialData?.selectedTab || getInitialTab(initialData?.userRole || 'BUSINESS_OWNER')
   );
 
-  const [instruments, setInstruments] = useState<InstrumentEntity[]>(initialData?.instruments || INITIAL_INSTRUMENTS);
+  const initialMergedInstruments = (() => {
+    const saved: InstrumentEntity[] = initialData?.instruments || [];
+    const seen = new Set<string>();
+    const merged: InstrumentEntity[] = [];
+    for (const inst of INITIAL_INSTRUMENTS) {
+      seen.add(inst.instrumentId);
+      merged.push(inst);
+    }
+    for (const inst of saved) {
+      if (!seen.has(inst.instrumentId)) {
+        seen.add(inst.instrumentId);
+        merged.push(inst);
+      }
+    }
+    return merged;
+  })();
+
+  const [instruments, setInstruments] = useState<InstrumentEntity[]>(initialMergedInstruments);
   const [requests, setRequests] = useState<VerificationRequestEntity[]>(initialData?.requests || INITIAL_REQUESTS);
   const [inspections, setInspections] = useState<InspectionEntity[]>(initialData?.inspections || []);
   const [certificates, setCertificates] = useState<CertificateEntity[]>(initialData?.certificates || INITIAL_CERTIFICATES);
@@ -479,7 +576,13 @@ export const MetrologyProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     passwordOrPin?: string,
     customName?: string,
     customDept?: string
-  ): Promise<{ success: boolean; isNotRegistered?: boolean; message?: string }> => {
+  ): Promise<{
+    success: boolean;
+    isNotRegistered?: boolean;
+    isWrongPortal?: boolean;
+    registeredRole?: UserRole;
+    message?: string;
+  }> => {
     const cleanEmail = emailOrId?.trim();
     if (!cleanEmail) {
       return {
@@ -497,26 +600,54 @@ export const MetrologyProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       };
     }
 
-    // Authenticate strictly against registered accounts in Supabase / Local DB
+    // Authenticate strictly against registered accounts in Supabase / Local DB with portal role
     const authAttempt = await authenticateUser(cleanEmail, passwordOrPin.trim(), role);
 
     if (authAttempt.success && authAttempt.user) {
       const authed = authAttempt.user;
-      setUsersList(prev => [authed, ...prev.filter(u => u.userId !== authed.userId && u.email.toLowerCase() !== authed.email.toLowerCase())]);
+
+      // Strict role verification safeguard: The authenticated user's role must match the requested portal role
+      if (authed.role !== role) {
+        return {
+          success: false,
+          isNotRegistered: true,
+          message: 'Account not registered or details incorrect. Please verify your details or register an account.'
+        };
+      }
+
+      setUsersList(prev => [
+        authed,
+        ...prev.filter(u => !(u.userId === authed.userId || (u.email.toLowerCase() === authed.email.toLowerCase() && u.role === authed.role)))
+      ]);
       setCurrentUser(authed);
       setUserRoleState(authed.role);
       setIsAuthenticated(true);
-      setActiveScreen('DASHBOARD');
 
-      if (authed.role === 'PUBLIC') {
-        setSelectedTab('PUBLIC_VERIFY');
-      } else if (authed.role === 'ADMIN') {
+      if (authed.role === 'ADMIN') {
+        setActiveScreen('ADMIN_PORTAL');
         setSelectedTab('ADMIN');
-      } else if (authed.role === 'INSPECTOR') {
-        setSelectedTab('REQUESTS');
       } else {
-        setSelectedTab('INSTRUMENTS');
+        setActiveScreen('DASHBOARD');
+        if (authed.role === 'PUBLIC') {
+          setSelectedTab('PUBLIC_VERIFY');
+        } else if (authed.role === 'INSPECTOR') {
+          setSelectedTab('REQUESTS');
+        } else {
+          setSelectedTab('INSTRUMENTS');
+        }
       }
+
+      // Record login in audit trail
+      recordLogin(
+        authed,
+        authed.role === 'ADMIN'
+          ? 'Central Administration Portal'
+          : authed.role === 'INSPECTOR'
+          ? 'Legal Metrology Officer'
+          : authed.role === 'BUSINESS_OWNER'
+          ? 'Commercial Business Owner'
+          : 'Citizens Account'
+      );
 
       const newLog: AuditLogEntity = {
         id: 'log-' + Date.now() + '-' + Math.random().toString(36).substring(2, 5),
@@ -525,19 +656,90 @@ export const MetrologyProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         performedBy: authed.name,
         role: authed.role,
         instrumentId: 'SUPABASE_AUTH',
-        details: `${authed.name} authenticated and approved via Supabase database (${SUPABASE_PROJECT_ID}).`
+        details: `${authed.name} authenticated and approved via Supabase database (${SUPABASE_PROJECT_ID}) for ${authed.role} portal.`
       };
       setAuditLogs(prev => [newLog, ...prev]);
       return { success: true, isNotRegistered: false, message: authAttempt.message };
     }
 
-    // Reject unregistered users or invalid passwords
+    // Reject unregistered users or invalid passwords securely without leaking account existence
     return {
       success: false,
-      isNotRegistered: authAttempt.isNotRegistered,
-      message: authAttempt.message || "Your account is not registered. Please register your account first via 'Register New Merchant / Cadre'."
+      isNotRegistered: authAttempt.isNotRegistered ?? true,
+      message: authAttempt.message || 'Account not registered or details incorrect. Please check your credentials or register an account.'
     };
-  }, []);
+  }, [recordLogin]);
+
+  // Master Admin Single Slot Registration
+  const registerAdminSlot = useCallback(async (adminData: {
+    name: string;
+    email: string;
+    password: string;
+    phone?: string;
+    department?: string;
+  }): Promise<{ success: boolean; message: string; user?: UserEntity }> => {
+    // 1. Double check slot status
+    const status = await fetchAdminSlotStatus();
+    if (!status.slotAvailable) {
+      return {
+        success: false,
+        message: 'Master Administrator single slot is already claimed and permanently locked. No further admin accounts can be created.'
+      };
+    }
+
+    try {
+      const res = await registerUserToSupabase({
+        name: adminData.name,
+        email: adminData.email,
+        password: adminData.password,
+        phone: adminData.phone || '+91 98450 99011',
+        role: 'ADMIN',
+        businessOrDepartment: adminData.department || 'National Metrological Directorate & Central Regulatory Board',
+        licenseNumber: 'MASTER-ADMIN-001'
+      });
+
+      if (res.success && res.user) {
+        const authed = res.user;
+        setUsersList(prev => [authed, ...prev.filter(u => u.role !== 'ADMIN')]);
+        setCurrentUser(authed);
+        setUserRoleState('ADMIN');
+        setIsAuthenticated(true);
+        setActiveScreen('ADMIN_PORTAL');
+        setSelectedTab('ADMIN');
+        setAdminSlotAvailable(false);
+        setExistingMasterAdmin(authed);
+
+        await recordLogin(authed, 'Central Administration Portal (Master Slot Provisioned)');
+
+        const newLog: AuditLogEntity = {
+          id: 'log-' + Date.now() + '-' + Math.random().toString(36).substring(2, 5),
+          timestamp: Date.now(),
+          action: 'MASTER_ADMIN_SLOT_CLAIMED',
+          performedBy: authed.name,
+          role: 'ADMIN',
+          instrumentId: 'STATUTORY_ADMIN_SLOT',
+          details: `Single Master Administrator slot successfully claimed and locked by ${authed.name} (${authed.email}). Protocol §14-A enacted.`
+        };
+        setAuditLogs(prev => [newLog, ...prev]);
+
+        return {
+          success: true,
+          message: 'Master Administrator account successfully provisioned and locked.',
+          user: authed
+        };
+      }
+
+      return {
+        success: false,
+        message: res.message || 'Failed to provision Master Admin slot.'
+      };
+    } catch (err: any) {
+      return {
+        success: false,
+        message: err.message || 'Error communicating with administration database.'
+      };
+    }
+  }, [recordLogin]);
 
   // Logout handler
   const logout = useCallback(() => {
@@ -565,7 +767,10 @@ export const MetrologyProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       syncedToSupabase: true
     };
 
-    setUsersList(prev => [newUser, ...prev.filter(u => u.userId !== newUser.userId && u.email.toLowerCase() !== newUser.email.toLowerCase())]);
+    setUsersList(prev => [
+      newUser,
+      ...prev.filter(u => !(u.userId === newUser.userId || (u.email.toLowerCase() === newUser.email.toLowerCase() && u.role === newUser.role)))
+    ]);
     setCurrentUser(newUser);
     setUserRoleState(userData.role);
     setIsAuthenticated(true);
@@ -618,7 +823,10 @@ export const MetrologyProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
       if (res.success && res.user) {
         const registered = res.user;
-        setUsersList(prev => [registered, ...prev.filter(u => u.userId !== registered.userId && u.email.toLowerCase() !== registered.email.toLowerCase())]);
+        setUsersList(prev => [
+          registered,
+          ...prev.filter(u => !(u.userId === registered.userId || (u.email.toLowerCase() === registered.email.toLowerCase() && u.role === registered.role)))
+        ]);
         setCurrentUser(registered);
         setUserRoleState(registered.role);
         setIsAuthenticated(true);
@@ -1367,6 +1575,13 @@ export const MetrologyProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         publicHasSearched,
         supabaseStatus,
         refreshSupabaseStatus,
+        adminSlotAvailable,
+        existingMasterAdmin,
+        loginRecords,
+        refreshAdminSlotStatus,
+        refreshLoginRecords,
+        registerAdminSlot,
+        recordLogin,
         login,
         logout,
         registerUser,

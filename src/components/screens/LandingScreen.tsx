@@ -128,7 +128,7 @@ export const LandingScreen: React.FC = () => {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             
             {/* Business Owner */}
             <div
@@ -178,30 +178,6 @@ export const LandingScreen: React.FC = () => {
               </div>
             </div>
 
-            {/* Admin Authority */}
-            <div
-              onClick={() => handleRoleSelect('ADMIN')}
-              className="p-5 bg-white rounded-3xl border border-slate-200 hover:border-slate-800 hover:shadow-lg transition-all cursor-pointer group flex flex-col justify-between"
-            >
-              <div className="space-y-3">
-                <div className="w-12 h-12 rounded-2xl bg-slate-100 text-slate-800 flex items-center justify-center group-hover:scale-110 transition-transform">
-                  <Award className="w-6 h-6" />
-                </div>
-                <div>
-                  <h4 className="text-base font-extrabold text-slate-900 group-hover:text-slate-700 transition-colors">
-                    Directorate Admin
-                  </h4>
-                  <p className="text-xs text-slate-500 mt-1 leading-relaxed">
-                    Statutory oversight, immutable audit trail, AI risk radar, inspector directory.
-                  </p>
-                </div>
-              </div>
-              <div className="pt-4 mt-4 border-t border-slate-100 flex items-center justify-between text-xs font-bold text-slate-800">
-                <span>Sign In as Admin</span>
-                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-              </div>
-            </div>
-
             {/* Public Consumer */}
             <div
               onClick={() => handleRoleSelect('PUBLIC')}
@@ -232,16 +208,26 @@ export const LandingScreen: React.FC = () => {
       </div>
 
       {/* Statutory Footer */}
-      <footer className="border-t border-slate-200 bg-white py-6">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500">
+      <footer id="landing-footer" className="border-t border-slate-200 bg-white py-6">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500">
           <div className="flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
             <span className="font-semibold text-slate-700">GovVerify Legal Metrology Directorate</span>
             <span>•</span>
             <span>ISO/IEC 17025 Compliance Engine</span>
           </div>
-          <div>
-            Powered by Google Gemini 2.5 Flash AI Diagnostics
+
+          <div className="flex items-center gap-4">
+            <span className="hidden sm:inline">Powered by Google Gemini 2.5 Flash AI</span>
+            <button
+              type="button"
+              id="landing-footer-admin-link"
+              onClick={() => setActiveScreen('ADMIN_PORTAL')}
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-amber-300 hover:text-amber-200 text-xs font-bold transition-all shadow-xs"
+            >
+              <Lock className="w-3.5 h-3.5" />
+              <span>Admin Portal Access</span>
+            </button>
           </div>
         </div>
       </footer>

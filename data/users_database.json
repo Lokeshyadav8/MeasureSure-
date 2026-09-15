@@ -1,0 +1,93 @@
+[
+  {
+    "userId": "USR-BIZ-300",
+    "name": "Lokeshyadav",
+    "email": "lokeshthangedipally02@gmail.com",
+    "phone": "9866374521",
+    "role": "BUSINESS_OWNER",
+    "businessOrDepartment": "Startups",
+    "licenseNumber": "999999999",
+    "passwordHash": "pbkdf2_sha256$25000$949039336c5a51aa80f1cae138a23b5e$277fc6c5ec137955785105dbd58899194f9befbea83401a1c8fa1d5089f0c2d7",
+    "salt": "949039336c5a51aa80f1cae138a23b5e",
+    "createdAt": 1789383913125,
+    "syncedToSupabase": true
+  },
+  {
+    "userId": "USR-BIZ-834",
+    "name": "Muskan",
+    "email": "muskanmd579@gmail.com",
+    "phone": "9392450063",
+    "role": "BUSINESS_OWNER",
+    "businessOrDepartment": "Nawi weining machines",
+    "licenseNumber": "98765443",
+    "passwordHash": "pbkdf2_sha256$25000$b2bad7244a8831b41eb5e1ddc4023ee1$298e9b21c32051bc2cca4581e959d3e468f75b7be702cab2dd0e52a1edee2f4f",
+    "salt": "b2bad7244a8831b41eb5e1ddc4023ee1",
+    "createdAt": 1789480443290,
+    "syncedToSupabase": true
+  },
+  {
+    "userId": "USR-BIZ-497",
+    "name": "Dokuri Thrivikram Srinivas",
+    "email": "thrivikramdts1356@gmail.com",
+    "phone": "9381170603",
+    "role": "BUSINESS_OWNER",
+    "businessOrDepartment": "Commercial Establishment",
+    "licenseNumber": "LM-BUS-5078",
+    "passwordHash": "pbkdf2_sha256$25000$6f3024eed8b9aa7321660e4d8ff27c2a$bf56f020e8ba52b83d3918b9cfe04979d6db3048fbb86f0052f3e6cde79f1150",
+    "salt": "6f3024eed8b9aa7321660e4d8ff27c2a",
+    "createdAt": 1789456777475,
+    "syncedToSupabase": true
+  },
+  {
+    "userId": "USR-INS-178",
+    "name": "Shreyareddy",
+    "email": "narappashreyareddy@gmail.com",
+    "phone": "7671985079",
+    "role": "INSPECTOR",
+    "businessOrDepartment": "Metro fuel logistics",
+    "licenseNumber": "lm-bus-5502",
+    "passwordHash": "pbkdf2_sha256$25000$788515aba2ccc13a3b90bfa06193172b$7f5f6bc2b82f4982023bf08bb904494bd7f381b87bfe791d818b31e4f147d31f",
+    "salt": "788515aba2ccc13a3b90bfa06193172b",
+    "createdAt": 1789455887790,
+    "syncedToSupabase": true
+  },
+  {
+    "userId": "USR-PUB-162",
+    "name": "Lokesh",
+    "email": "lokii.personall@gmail.com",
+    "phone": "9638527410",
+    "role": "PUBLIC",
+    "businessOrDepartment": "Non",
+    "licenseNumber": "777777777",
+    "passwordHash": "pbkdf2_sha256$25000$ce0b69f7fed06f7cd2f408a15b0e7cc0$f8c7e595af33740826e9d7bb0b110b072f46340070c23ece0b36480daa02113b",
+    "salt": "ce0b69f7fed06f7cd2f408a15b0e7cc0",
+    "createdAt": 1789475093571,
+    "syncedToSupabase": true
+  },
+  {
+    "userId": "USR-ADM-515",
+    "name": "Madhav",
+    "email": "kadammadhav756@gmail.com",
+    "phone": "8498059816",
+    "role": "ADMIN",
+    "businessOrDepartment": "Blue stone",
+    "licenseNumber": "784546648488",
+    "passwordHash": "pbkdf2_sha256$25000$5a6e3d5489a2746b33c8643ba1663384$0ee35670116b8195837b0efbe905c80bacfcdf480841dabdf2403b06df033a8f",
+    "salt": "5a6e3d5489a2746b33c8643ba1663384",
+    "createdAt": 1789452265744,
+    "syncedToSupabase": true
+  },
+  {
+    "userId": "ADM-MASTER-001",
+    "name": "Chief Director General (Legal Metrology)",
+    "email": "admin.metrology@gov.in",
+    "phone": "+91 98450 99001",
+    "role": "ADMIN",
+    "businessOrDepartment": "Central Legal Metrology Directorate & National Oversight Council",
+    "licenseNumber": "DIR-MET-HQ-001",
+    "passwordHash": "pbkdf2_sha256$25000$c8f1e2d3b4a56789$06be050228988c64ea92d89df298859ea6b03d6c5385fe82fd32af15a8f1dd51",
+    "salt": "c8f1e2d3b4a56789",
+    "createdAt": 1789000000000,
+    "syncedToSupabase": true
+  }
+]

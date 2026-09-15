@@ -13,6 +13,7 @@ import { StatutoryPaymentModal } from './components/modals/StatutoryPaymentModal
 import { StatutoryChallanReceiptModal } from './components/modals/StatutoryChallanReceiptModal';
 import { StatutoryGrievanceModal } from './components/modals/StatutoryGrievanceModal';
 import { GrievanceRedressalScreen } from './components/screens/GrievanceRedressalScreen';
+import { AdminPanelScreen } from './components/screens/AdminPanelScreen';
 import { ScannedCertificatePhotoViewer } from './components/common/ScannedCertificatePhotoViewer';
 
 const AppContent: React.FC = () => {
@@ -60,12 +61,13 @@ const AppContent: React.FC = () => {
       <HeaderBar />
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        {activeScreen === 'ADMIN_PORTAL' && <AdminPanelScreen />}
         {activeScreen === 'GRIEVANCE_PORTAL' && <GrievanceRedressalScreen />}
         {activeScreen === 'PUBLIC_VERIFY' && <PublicQrVerificationScreen />}
-        {!isAuthenticated && activeScreen !== 'PUBLIC_VERIFY' && activeScreen !== 'GRIEVANCE_PORTAL' && <LoginScreen />}
-        {isAuthenticated && activeScreen === 'LOGIN' && <LoginScreen />}
-        {isAuthenticated && (activeScreen === 'DASHBOARD' || activeScreen === 'LANDING') && <DashboardScreen />}
-        {isAuthenticated && activeScreen === 'INSPECTION_WORKSPACE' && <InspectionWorkspaceScreen />}
+        {activeScreen !== 'ADMIN_PORTAL' && !isAuthenticated && activeScreen !== 'PUBLIC_VERIFY' && activeScreen !== 'GRIEVANCE_PORTAL' && <LoginScreen />}
+        {activeScreen !== 'ADMIN_PORTAL' && isAuthenticated && activeScreen === 'LOGIN' && <LoginScreen />}
+        {activeScreen !== 'ADMIN_PORTAL' && isAuthenticated && (activeScreen === 'DASHBOARD' || activeScreen === 'LANDING') && <DashboardScreen />}
+        {activeScreen !== 'ADMIN_PORTAL' && isAuthenticated && activeScreen === 'INSPECTION_WORKSPACE' && <InspectionWorkspaceScreen />}
       </main>
 
       {/* Global Modals */}

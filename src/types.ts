@@ -1,6 +1,20 @@
 export type UserRole = 'BUSINESS_OWNER' | 'INSPECTOR' | 'ADMIN' | 'PUBLIC';
 
-export type ScreenType = 'LOGIN' | 'LANDING' | 'DASHBOARD' | 'INSPECTION_WORKSPACE' | 'PUBLIC_VERIFY' | 'GRIEVANCE_PORTAL';
+export type ScreenType = 'LOGIN' | 'LANDING' | 'DASHBOARD' | 'INSPECTION_WORKSPACE' | 'PUBLIC_VERIFY' | 'GRIEVANCE_PORTAL' | 'ADMIN_PORTAL';
+
+export interface LoginAuditRecord {
+  id: string;
+  userId: string;
+  name: string;
+  email: string;
+  role: UserRole;
+  businessOrDepartment?: string;
+  portalName: string;
+  timestamp: number;
+  ipAddress?: string;
+  userAgent?: string;
+  status: 'SUCCESS' | 'FAILED';
+}
 
 export type InstrumentStatus =
   | 'DRAFT'

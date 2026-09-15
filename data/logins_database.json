@@ -1,0 +1,93 @@
+[
+  {
+    "id": "LOG-SUPA-101",
+    "userId": "USR-BIZ-834",
+    "name": "Muskan",
+    "email": "muskanmd579@gmail.com",
+    "role": "BUSINESS_OWNER",
+    "businessOrDepartment": "Nawi weining machines",
+    "portalName": "Commercial Merchant Portal",
+    "timestamp": 1789480443290,
+    "ipAddress": "103.141.52.88 (Mobile Telecom)",
+    "userAgent": "Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36 Chrome/128.0",
+    "status": "SUCCESS"
+  },
+  {
+    "id": "LOG-SUPA-102",
+    "userId": "USR-PUB-162",
+    "name": "Lokesh",
+    "email": "lokii.personall@gmail.com",
+    "role": "PUBLIC",
+    "businessOrDepartment": "Non",
+    "portalName": "Citizen Verification Portal",
+    "timestamp": 1789475093571,
+    "ipAddress": "49.207.214.110 (Airtel Broadband Hyd)",
+    "userAgent": "Mozilla/5.0 (Linux; Android 14; 22101316UP) AppleWebKit/537.36 Chrome/129.0",
+    "status": "SUCCESS"
+  },
+  {
+    "id": "LOG-SUPA-103",
+    "userId": "USR-BIZ-497",
+    "name": "Dokuri Thrivikram Srinivas",
+    "email": "thrivikramdts1356@gmail.com",
+    "role": "BUSINESS_OWNER",
+    "businessOrDepartment": "Commercial Establishment",
+    "portalName": "Commercial Merchant Portal",
+    "timestamp": 1789456777475,
+    "ipAddress": "157.48.12.94 (Jio Fiber Commercial)",
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/127.0",
+    "status": "SUCCESS"
+  },
+  {
+    "id": "LOG-SUPA-104",
+    "userId": "USR-INS-178",
+    "name": "Shreyareddy",
+    "email": "narappashreyareddy@gmail.com",
+    "role": "INSPECTOR",
+    "businessOrDepartment": "Metro fuel logistics",
+    "portalName": "Legal Metrology Officer Portal",
+    "timestamp": 1789455887790,
+    "ipAddress": "10.124.60.14 (GovNet Field Terminal)",
+    "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 Safari/17.4",
+    "status": "SUCCESS"
+  },
+  {
+    "id": "LOG-SUPA-105",
+    "userId": "USR-ADM-515",
+    "name": "Madhav",
+    "email": "kadammadhav756@gmail.com",
+    "role": "ADMIN",
+    "businessOrDepartment": "Blue stone",
+    "portalName": "Central Administration Portal",
+    "timestamp": 1789452265744,
+    "ipAddress": "182.73.19.140 (Directorate Oversight Console)",
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/128.0",
+    "status": "SUCCESS"
+  },
+  {
+    "id": "LOG-SUPA-106",
+    "userId": "USR-BIZ-300",
+    "name": "Lokeshyadav",
+    "email": "lokeshthangedipally02@gmail.com",
+    "role": "BUSINESS_OWNER",
+    "businessOrDepartment": "Startups",
+    "portalName": "Commercial Merchant Portal",
+    "timestamp": 1789383913125,
+    "ipAddress": "49.205.144.62 (Merchant Terminal 1)",
+    "userAgent": "Mozilla/5.0 (Linux; Android 13; SM-A536E) AppleWebKit/537.36 Chrome/126.0",
+    "status": "SUCCESS"
+  },
+  {
+    "id": "LOG-SUPA-107",
+    "userId": "ADM-MASTER-001",
+    "name": "Chief Director General (Legal Metrology)",
+    "email": "admin.metrology@gov.in",
+    "role": "ADMIN",
+    "businessOrDepartment": "Central Legal Metrology Directorate & National Oversight Council",
+    "portalName": "Central Administration Portal",
+    "timestamp": 1789470391979,
+    "ipAddress": "2400:7b60:6:7409:1c61:1031:eed:571d",
+    "userAgent": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 Chrome/153.0.0.0 Mobile Safari/537.36",
+    "status": "SUCCESS"
+  }
+]
